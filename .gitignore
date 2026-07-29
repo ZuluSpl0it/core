@@ -59,3 +59,7 @@ CLAUDE.md
 
 # CI cache (populated during Docker builds)
 .cache/
+
+# Local Graphify artifacts
+/graphify-out/
+__pycache__/

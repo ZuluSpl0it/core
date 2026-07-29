@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "profiles": {
+    "coding": {
+      "include_roots": [
+        "app",
+        "cmd",
+        "custom",
+        "server",
+        "types",
+        "wasmbinding",
+        "x",
+        "tests",
+        "proto"
+      ],
+      "include_files": [
+        "README.md",
+        "go.mod",
+        "go.sum"
+      ],
+      "exclude_globs": [
+        "**/*.pb.go",
+        "**/*.pb.gw.go",
+        "client/docs/swagger-ui/**",
+        "**/*.wasm",
+        "**/testdata/**",
+        "CHANGELOG.md",
+        "graphify-out/**"
+      ],
+      "max_generated_node_ratio": 0.05,
+      "max_dangling_edge_ratio": 0.05
+    },
+    "domain-api": {
+      "include_roots": [
+        "docs",
+        "proto",
+        "x",
+        "app/upgrades",
+        "tests"
+      ],
+      "include_files": [
+        "README.md",
+        "client/docs/swagger-ui/swagger.yaml"
+      ],
+      "exclude_globs": [
+        "**/*.go",
+        "client/docs/swagger-ui/**",
+        "**/*.wasm",
+        "**/testdata/**",
+        "graphify-out/**"
+      ],
+      "max_generated_node_ratio": 0.05,
+      "max_dangling_edge_ratio": 0.05
+    }
+  }
+}
