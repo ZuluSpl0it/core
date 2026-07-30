@@ -1,0 +1,233 @@
+package keeper
+
+import (
+	"context"
+
+	"cosmossdk.io/math"
+	"github.com/classic-terra/core/v4/x/ustcstaking/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+)
+
+type msgServer struct{ Keeper }
+
+func NewMsgServerImpl(keeper Keeper) types.MsgServer {
+	return &msgServer{Keeper: keeper}
+}
+
+var _ types.MsgServer = msgServer{}
+
+func (k msgServer) Stake(goCtx context.Context, msg *types.MsgStake) (*types.MsgStakeResponse, error) {
+	ctx := sdk.UnwrapSDKContext(goCtx)
+	params := k.GetParams(ctx)
+	if params.Paused {
+		return nil, types.ErrModulePaused
+	}
+	if err := msg.ValidateBasic(); err != nil {
+		return nil, err
+	}
+	tier, found := findLockTier(params, msg.LockTierId)
+	if !found {
+		return nil, types.ErrInvalidLockTier.Wrapf("tier %d does not exist", msg.LockTierId)
+	}
+	shares := msg.Amount.Amount.ToLegacyDec().Mul(tier.Multiplier).TruncateInt()
+	if !shares.IsPositive() {
+		return nil, types.ErrInvalidLockTier.Wrap("amount and multiplier produce zero shares")
+	}
+	owner, _ := sdk.AccAddressFromBech32(msg.Owner)
+	if err := k.bankKeeper.SendCoinsFromAccountToModule(ctx, owner, types.PrincipalPoolName, sdk.NewCoins(msg.Amount)); err != nil {
+		return nil, err
+	}
+
+	state := k.GetRewardState(ctx)
+	index := state.RewardIndex
+	if index.IsNil() {
+		index = math.LegacyZeroDec()
+	}
+	positionID := k.GetNextPositionID(ctx)
+	position := types.Position{
+		Id:               positionID,
+		Owner:            msg.Owner,
+		Principal:        msg.Amount,
+		Shares:           shares,
+		LockTierId:       msg.LockTierId,
+		ShareMultiplier:  tier.Multiplier,
+		RewardDebt:       shares.ToLegacyDec().Mul(index),
+		Status:           types.PositionStatus_POSITION_STATUS_ACTIVE,
+		ClaimableRewards: sdk.NewCoin(types.BondDenom, math.ZeroInt()),
+		LockDuration:     tier.Duration,
+	}
+	k.SetPosition(ctx, position)
+	k.SetNextPositionID(ctx, positionID+1)
+	if state.TotalShares.IsNil() {
+		state.TotalShares = math.ZeroInt()
+	}
+	state.TotalShares = state.TotalShares.Add(shares)
+	k.SetRewardState(ctx, state)
+
+	return &types.MsgStakeResponse{PositionId: positionID}, nil
+}
+
+func (k msgServer) BeginUnbonding(goCtx context.Context, msg *types.MsgBeginUnbonding) (*types.MsgBeginUnbondingResponse, error) {
+	ctx := sdk.UnwrapSDKContext(goCtx)
+	if err := msg.ValidateBasic(); err != nil {
+		return nil, err
+	}
+	position, found := k.GetPosition(ctx, msg.PositionId)
+	if !found {
+		return nil, types.ErrPositionNotFound
+	}
+	if position.Owner != msg.Owner {
+		return nil, types.ErrPositionOwner
+	}
+	if position.Status != types.PositionStatus_POSITION_STATUS_ACTIVE || position.LockDuration == nil {
+		return nil, types.ErrInvalidPositionState
+	}
+
+	state := k.GetRewardState(ctx)
+	claimable := position.ClaimableRewards.Amount
+	if claimable.IsNil() {
+		claimable = math.ZeroInt()
+	}
+	claimable = claimable.Add(k.AccruedRewards(position, state))
+	if state.TotalShares.IsNil() || state.TotalShares.LT(position.Shares) {
+		return nil, types.ErrInvalidRewardState
+	}
+	state.TotalShares = state.TotalShares.Sub(position.Shares)
+	position.Shares = math.ZeroInt()
+	position.RewardDebt = math.LegacyZeroDec()
+	position.ClaimableRewards = sdk.NewCoin(types.BondDenom, claimable)
+	position.Status = types.PositionStatus_POSITION_STATUS_UNBONDING
+	end := ctx.BlockTime().Add(*position.LockDuration)
+	position.UnbondingEndTime = &end
+	k.SetPosition(ctx, position)
+	k.SetRewardState(ctx, state)
+	return &types.MsgBeginUnbondingResponse{}, nil
+}
+
+func (k msgServer) Withdraw(goCtx context.Context, msg *types.MsgWithdraw) (*types.MsgWithdrawResponse, error) {
+	ctx := sdk.UnwrapSDKContext(goCtx)
+	if err := msg.ValidateBasic(); err != nil {
+		return nil, err
+	}
+	position, found := k.GetPosition(ctx, msg.PositionId)
+	if !found {
+		return nil, types.ErrPositionNotFound
+	}
+	if position.Owner != msg.Owner {
+		return nil, types.ErrPositionOwner
+	}
+	if position.Status != types.PositionStatus_POSITION_STATUS_UNBONDING || position.UnbondingEndTime == nil {
+		return nil, types.ErrInvalidPositionState
+	}
+	if ctx.BlockTime().Before(*position.UnbondingEndTime) {
+		return nil, types.ErrNotMatured
+	}
+	owner, _ := sdk.AccAddressFromBech32(msg.Owner)
+	if err := k.bankKeeper.SendCoinsFromModuleToAccount(ctx, types.PrincipalPoolName, owner, sdk.NewCoins(position.Principal)); err != nil {
+		return nil, err
+	}
+	position.Principal = sdk.NewCoin(types.BondDenom, math.ZeroInt())
+	position.Status = types.PositionStatus_POSITION_STATUS_WITHDRAWN
+	k.SetPosition(ctx, position)
+	return &types.MsgWithdrawResponse{}, nil
+}
+
+func (k msgServer) ClaimRewards(goCtx context.Context, msg *types.MsgClaimRewards) (*types.MsgClaimRewardsResponse, error) {
+	ctx := sdk.UnwrapSDKContext(goCtx)
+	if err := msg.ValidateBasic(); err != nil {
+		return nil, err
+	}
+	position, found := k.GetPosition(ctx, msg.PositionId)
+	if !found {
+		return nil, types.ErrPositionNotFound
+	}
+	if position.Owner != msg.Owner {
+		return nil, types.ErrPositionOwner
+	}
+	if position.Status != types.PositionStatus_POSITION_STATUS_ACTIVE &&
+		position.Status != types.PositionStatus_POSITION_STATUS_UNBONDING &&
+		position.Status != types.PositionStatus_POSITION_STATUS_WITHDRAWN {
+		return nil, types.ErrInvalidPositionState
+	}
+
+	state := k.GetRewardState(ctx)
+	amount := k.AccruedRewards(position, state)
+	if amount.IsNil() {
+		amount = math.ZeroInt()
+	}
+	if amount.IsZero() {
+		return &types.MsgClaimRewardsResponse{Amount: sdk.NewCoin(types.BondDenom, amount)}, nil
+	}
+	pool := k.bankKeeper.GetBalance(ctx, authtypes.NewModuleAddress(types.RewardPoolName), types.BondDenom)
+	if pool.Amount.IsNil() || pool.Amount.LT(amount) {
+		return nil, types.ErrRewardPoolInsolvent
+	}
+	owner, _ := sdk.AccAddressFromBech32(msg.Owner)
+	if err := k.bankKeeper.SendCoinsFromModuleToAccount(ctx, types.RewardPoolName, owner, sdk.NewCoins(sdk.NewCoin(types.BondDenom, amount))); err != nil {
+		return nil, err
+	}
+	if position.Status == types.PositionStatus_POSITION_STATUS_ACTIVE {
+		index := state.RewardIndex
+		if index.IsNil() {
+			index = math.LegacyZeroDec()
+		}
+		position.RewardDebt = position.Shares.ToLegacyDec().Mul(index)
+	} else {
+		position.ClaimableRewards = sdk.NewCoin(types.BondDenom, math.ZeroInt())
+	}
+	k.SetPosition(ctx, position)
+	return &types.MsgClaimRewardsResponse{Amount: sdk.NewCoin(types.BondDenom, amount)}, nil
+}
+
+func (k msgServer) FundRewards(goCtx context.Context, msg *types.MsgFundRewards) (*types.MsgFundRewardsResponse, error) {
+	ctx := sdk.UnwrapSDKContext(goCtx)
+	params := k.GetParams(ctx)
+	if params.Paused {
+		return nil, types.ErrModulePaused
+	}
+	if msg.Sender != params.FundingAuthority {
+		return nil, types.ErrUnauthorized
+	}
+	sender, _ := sdk.AccAddressFromBech32(msg.Sender)
+	if err := k.Keeper.FundRewards(ctx, sender, msg.Amount); err != nil {
+		return nil, err
+	}
+	return &types.MsgFundRewardsResponse{Amount: msg.Amount}, nil
+}
+
+func (k msgServer) UpdateParams(goCtx context.Context, msg *types.MsgUpdateParams) (*types.MsgUpdateParamsResponse, error) {
+	ctx := sdk.UnwrapSDKContext(goCtx)
+	params := k.GetParams(ctx)
+	if msg.Authority != params.Authority {
+		return nil, types.ErrUnauthorized
+	}
+	if err := msg.Params.Validate(); err != nil {
+		return nil, err
+	}
+	k.SetParams(ctx, msg.Params)
+	return &types.MsgUpdateParamsResponse{}, nil
+}
+
+func (k msgServer) UpdateFundingAuthority(goCtx context.Context, msg *types.MsgUpdateFundingAuthority) (*types.MsgUpdateFundingAuthorityResponse, error) {
+	ctx := sdk.UnwrapSDKContext(goCtx)
+	params := k.GetParams(ctx)
+	if msg.Authority != params.Authority {
+		return nil, types.ErrUnauthorized
+	}
+	if _, err := sdk.AccAddressFromBech32(msg.FundingAuthority); err != nil {
+		return nil, err
+	}
+	params.FundingAuthority = msg.FundingAuthority
+	k.SetParams(ctx, params)
+	return &types.MsgUpdateFundingAuthorityResponse{}, nil
+}
+
+func findLockTier(params types.Params, id uint32) (types.LockTier, bool) {
+	for _, tier := range params.LockTiers {
+		if tier.Id == id {
+			return tier, true
+		}
+	}
+	return types.LockTier{}, false
+}

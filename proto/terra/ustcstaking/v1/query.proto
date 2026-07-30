@@ -1,0 +1,40 @@
+syntax = "proto3";
+package terra.ustcstaking.v1;
+
+import "cosmos/base/query/v1beta1/pagination.proto";
+import "cosmos_proto/cosmos.proto";
+import "google/api/annotations.proto";
+import "gogoproto/gogo.proto";
+import "terra/ustcstaking/v1/ustcstaking.proto";
+
+option go_package = "github.com/classic-terra/core/v4/x/ustcstaking/types";
+
+service Query {
+  rpc Position(QueryPositionRequest) returns (QueryPositionResponse) {
+    option (google.api.http).get = "/terra/ustcstaking/v1/positions/{position_id}";
+  }
+  rpc PositionsByOwner(QueryPositionsByOwnerRequest) returns (QueryPositionsByOwnerResponse) {
+    option (google.api.http).get = "/terra/ustcstaking/v1/owners/{owner}/positions";
+  }
+  rpc RewardState(QueryRewardStateRequest) returns (QueryRewardStateResponse) {
+    option (google.api.http).get = "/terra/ustcstaking/v1/reward-state";
+  }
+  rpc Params(QueryParamsRequest) returns (QueryParamsResponse) {
+    option (google.api.http).get = "/terra/ustcstaking/v1/params";
+  }
+}
+
+message QueryPositionRequest { uint64 position_id = 1 [(gogoproto.moretags) = "yaml:\"position_id\""]; }
+message QueryPositionResponse { Position position = 1 [(gogoproto.nullable) = false]; }
+message QueryPositionsByOwnerRequest {
+  string owner = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  cosmos.base.query.v1beta1.PageRequest pagination = 2;
+}
+message QueryPositionsByOwnerResponse {
+  repeated Position positions = 1 [(gogoproto.nullable) = false];
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+message QueryRewardStateRequest {}
+message QueryRewardStateResponse { RewardState reward_state = 1 [(gogoproto.nullable) = false]; }
+message QueryParamsRequest {}
+message QueryParamsResponse { Params params = 1 [(gogoproto.nullable) = false]; }

@@ -40,6 +40,8 @@ import (
 	"github.com/classic-terra/core/v4/x/treasury"
 	treasuryclient "github.com/classic-terra/core/v4/x/treasury/client"
 	treasurytypes "github.com/classic-terra/core/v4/x/treasury/types"
+	"github.com/classic-terra/core/v4/x/ustcstaking"
+	ustcstakingtypes "github.com/classic-terra/core/v4/x/ustcstaking/types"
 	"github.com/classic-terra/core/v4/x/vesting"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	"github.com/cosmos/cosmos-sdk/x/auth"
@@ -112,25 +114,28 @@ var (
 		taxexemption.AppModuleBasic{},
 		customwasm.AppModuleBasic{},
 		dyncomm.AppModuleBasic{},
+		ustcstaking.AppModuleBasic{},
 		ibchooks.AppModuleBasic{},
 		consensus.AppModuleBasic{},
 		taxmodule.AppModuleBasic{},
 	)
 	// module account permissions
 	maccPerms = map[string][]string{
-		authtypes.FeeCollectorName:     nil, // just added to enable align fee
-		treasurytypes.BurnModuleName:   {authtypes.Burner},
-		minttypes.ModuleName:           {authtypes.Minter},
-		markettypes.ModuleName:         {authtypes.Minter, authtypes.Burner},
-		oracletypes.ModuleName:         nil,
-		distrtypes.ModuleName:          nil,
-		treasurytypes.ModuleName:       {authtypes.Minter, authtypes.Burner},
-		stakingtypes.BondedPoolName:    {authtypes.Burner, authtypes.Staking},
-		stakingtypes.NotBondedPoolName: {authtypes.Burner, authtypes.Staking},
-		govtypes.ModuleName:            {authtypes.Burner},
-		ibctransfertypes.ModuleName:    {authtypes.Minter, authtypes.Burner},
-		icatypes.ModuleName:            nil,
-		wasmtypes.ModuleName:           {authtypes.Burner},
+		authtypes.FeeCollectorName:         nil, // just added to enable align fee
+		treasurytypes.BurnModuleName:       {authtypes.Burner},
+		minttypes.ModuleName:               {authtypes.Minter},
+		markettypes.ModuleName:             {authtypes.Minter, authtypes.Burner},
+		oracletypes.ModuleName:             nil,
+		distrtypes.ModuleName:              nil,
+		treasurytypes.ModuleName:           {authtypes.Minter, authtypes.Burner},
+		stakingtypes.BondedPoolName:        {authtypes.Burner, authtypes.Staking},
+		stakingtypes.NotBondedPoolName:     {authtypes.Burner, authtypes.Staking},
+		govtypes.ModuleName:                {authtypes.Burner},
+		ibctransfertypes.ModuleName:        {authtypes.Minter, authtypes.Burner},
+		icatypes.ModuleName:                nil,
+		wasmtypes.ModuleName:               {authtypes.Burner},
+		ustcstakingtypes.PrincipalPoolName: nil,
+		ustcstakingtypes.RewardPoolName:    nil,
 	}
 	// module accounts that are allowed to receive tokens
 	allowedReceivingModAcc = map[string]bool{
@@ -170,6 +175,7 @@ func appModules(
 		taxexemption.NewAppModule(appCodec, app.TaxExemptionKeeper),
 		customwasm.NewAppModule(appCodec, &app.WasmKeeper, app.StakingKeeper, app.AccountKeeper, app.BankKeeper, app.MsgServiceRouter(), app.GetSubspace(wasmtypes.ModuleName), app.GetKey(wasmtypes.StoreKey)),
 		dyncomm.NewAppModule(appCodec, app.DyncommKeeper, app.StakingKeeper),
+		ustcstaking.NewAppModule(appCodec, app.UstcStakingKeeper),
 		ibchooks.NewAppModule(app.AccountKeeper),
 		consensus.NewAppModule(appCodec, app.ConsensusParamsKeeper),
 		taxmodule.NewAppModule(appCodec, app.TaxKeeper),
@@ -202,6 +208,7 @@ func simulationModules(
 		taxexemption.NewAppModule(appCodec, app.TaxExemptionKeeper),
 		customwasm.NewAppModule(appCodec, &app.WasmKeeper, app.StakingKeeper, app.AccountKeeper, app.BankKeeper, app.MsgServiceRouter(), app.GetSubspace(wasmtypes.ModuleName), app.GetKey(wasmtypes.StoreKey)),
 		dyncomm.NewAppModule(appCodec, app.DyncommKeeper, app.StakingKeeper),
+		ustcstaking.NewAppModule(appCodec, app.UstcStakingKeeper),
 		taxmodule.NewAppModule(appCodec, app.TaxKeeper),
 	}
 }
@@ -233,6 +240,7 @@ func orderBeginBlockers() []string {
 		markettypes.ModuleName,
 		wasmtypes.ModuleName,
 		dyncommtypes.ModuleName,
+		ustcstakingtypes.ModuleName,
 		taxtypes.ModuleName,
 		// consensus module
 		consensusparamtypes.ModuleName,
@@ -267,6 +275,7 @@ func orderEndBlockers() []string {
 		markettypes.ModuleName,
 		wasmtypes.ModuleName,
 		dyncommtypes.ModuleName,
+		ustcstakingtypes.ModuleName,
 		taxtypes.ModuleName,
 		// consensus module
 		consensusparamtypes.ModuleName,
@@ -301,6 +310,7 @@ func orderInitGenesis() []string {
 		taxexemptiontypes.ModuleName,
 		wasmtypes.ModuleName,
 		dyncommtypes.ModuleName,
+		ustcstakingtypes.ModuleName,
 		taxtypes.ModuleName,
 		// consensus module
 		consensusparamtypes.ModuleName,

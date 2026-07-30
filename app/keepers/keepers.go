@@ -30,6 +30,8 @@ import (
 	taxexemptiontypes "github.com/classic-terra/core/v4/x/taxexemption/types"
 	treasurykeeper "github.com/classic-terra/core/v4/x/treasury/keeper"
 	treasurytypes "github.com/classic-terra/core/v4/x/treasury/types"
+	ustcstakingkeeper "github.com/classic-terra/core/v4/x/ustcstaking/keeper"
+	ustcstakingtypes "github.com/classic-terra/core/v4/x/ustcstaking/types"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/codec/address"
@@ -102,6 +104,7 @@ type AppKeepers struct {
 	TaxExemptionKeeper    taxexemptionkeeper.Keeper
 	WasmKeeper            wasmkeeper.Keeper
 	DyncommKeeper         dyncommkeeper.Keeper
+	UstcStakingKeeper     ustcstakingkeeper.Keeper
 	IBCHooksKeeper        *ibchookskeeper.Keeper
 	ConsensusParamsKeeper consensusparamkeeper.Keeper
 	TaxKeeper             taxkeeper.Keeper
@@ -148,6 +151,7 @@ func NewAppKeepers(
 		taxexemptiontypes.StoreKey:   storetypes.NewKVStoreKey(taxexemptiontypes.StoreKey),
 		wasmtypes.StoreKey:           storetypes.NewKVStoreKey(wasmtypes.StoreKey),
 		dyncommtypes.StoreKey:        storetypes.NewKVStoreKey(dyncommtypes.StoreKey),
+		ustcstakingtypes.StoreKey:    storetypes.NewKVStoreKey(ustcstakingtypes.StoreKey),
 		taxtypes.StoreKey:            storetypes.NewKVStoreKey(taxtypes.StoreKey),
 	}
 	tkeys := map[string]*storetypes.TransientStoreKey{
@@ -205,6 +209,11 @@ func NewAppKeepers(
 		appKeepers.BlacklistedAccAddrs(maccPerms, allowedReceivingModAcc),
 		authtypes.NewModuleAddress(govtypes.ModuleName).String(),
 		sdklog.NewNopLogger(),
+	)
+	appKeepers.UstcStakingKeeper = ustcstakingkeeper.NewKeeper(
+		appCodec,
+		appKeepers.keys[ustcstakingtypes.StoreKey],
+		appKeepers.BankKeeper,
 	)
 	appKeepers.AuthzKeeper = authzkeeper.NewKeeper(
 		runtime.NewKVStoreService(appKeepers.keys[authzkeeper.StoreKey]),

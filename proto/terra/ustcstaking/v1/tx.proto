@@ -1,0 +1,84 @@
+syntax = "proto3";
+package terra.ustcstaking.v1;
+
+import "cosmos/base/v1beta1/coin.proto";
+import "cosmos/msg/v1/msg.proto";
+import "cosmos_proto/cosmos.proto";
+import "gogoproto/gogo.proto";
+import "terra/ustcstaking/v1/ustcstaking.proto";
+
+option go_package = "github.com/classic-terra/core/v4/x/ustcstaking/types";
+
+service Msg {
+  rpc Stake(MsgStake) returns (MsgStakeResponse);
+  rpc BeginUnbonding(MsgBeginUnbonding) returns (MsgBeginUnbondingResponse);
+  rpc Withdraw(MsgWithdraw) returns (MsgWithdrawResponse);
+  rpc ClaimRewards(MsgClaimRewards) returns (MsgClaimRewardsResponse);
+  rpc FundRewards(MsgFundRewards) returns (MsgFundRewardsResponse);
+  rpc UpdateParams(MsgUpdateParams) returns (MsgUpdateParamsResponse);
+  rpc UpdateFundingAuthority(MsgUpdateFundingAuthority) returns (MsgUpdateFundingAuthorityResponse);
+}
+
+message MsgStake {
+  option (cosmos.msg.v1.signer) = "owner";
+  option (gogoproto.equal) = true;
+  option (gogoproto.goproto_getters) = false;
+  string owner = 1 [(cosmos_proto.scalar) = "cosmos.AddressString", (gogoproto.moretags) = "yaml:\"owner\""];
+  cosmos.base.v1beta1.Coin amount = 2 [(gogoproto.nullable) = false, (gogoproto.moretags) = "yaml:\"amount\""];
+  uint32 lock_tier_id = 3 [(gogoproto.moretags) = "yaml:\"lock_tier_id\""];
+}
+message MsgStakeResponse { uint64 position_id = 1 [(gogoproto.moretags) = "yaml:\"position_id\""]; }
+
+message MsgBeginUnbonding {
+  option (cosmos.msg.v1.signer) = "owner";
+  option (gogoproto.equal) = true;
+  option (gogoproto.goproto_getters) = false;
+  string owner = 1 [(cosmos_proto.scalar) = "cosmos.AddressString", (gogoproto.moretags) = "yaml:\"owner\""];
+  uint64 position_id = 2 [(gogoproto.moretags) = "yaml:\"position_id\""];
+}
+message MsgBeginUnbondingResponse {}
+
+message MsgWithdraw {
+  option (cosmos.msg.v1.signer) = "owner";
+  option (gogoproto.equal) = true;
+  option (gogoproto.goproto_getters) = false;
+  string owner = 1 [(cosmos_proto.scalar) = "cosmos.AddressString", (gogoproto.moretags) = "yaml:\"owner\""];
+  uint64 position_id = 2 [(gogoproto.moretags) = "yaml:\"position_id\""];
+}
+message MsgWithdrawResponse {}
+
+message MsgClaimRewards {
+  option (cosmos.msg.v1.signer) = "owner";
+  option (gogoproto.equal) = true;
+  option (gogoproto.goproto_getters) = false;
+  string owner = 1 [(cosmos_proto.scalar) = "cosmos.AddressString", (gogoproto.moretags) = "yaml:\"owner\""];
+  uint64 position_id = 2 [(gogoproto.moretags) = "yaml:\"position_id\""];
+}
+message MsgClaimRewardsResponse { cosmos.base.v1beta1.Coin amount = 1 [(gogoproto.nullable) = false, (gogoproto.moretags) = "yaml:\"amount\""]; }
+
+message MsgFundRewards {
+  option (cosmos.msg.v1.signer) = "sender";
+  option (gogoproto.equal) = true;
+  option (gogoproto.goproto_getters) = false;
+  string sender = 1 [(cosmos_proto.scalar) = "cosmos.AddressString", (gogoproto.moretags) = "yaml:\"sender\""];
+  cosmos.base.v1beta1.Coin amount = 2 [(gogoproto.nullable) = false, (gogoproto.moretags) = "yaml:\"amount\""];
+}
+message MsgFundRewardsResponse { cosmos.base.v1beta1.Coin amount = 1 [(gogoproto.nullable) = false, (gogoproto.moretags) = "yaml:\"amount\""]; }
+
+message MsgUpdateParams {
+  option (cosmos.msg.v1.signer) = "authority";
+  option (gogoproto.equal) = true;
+  option (gogoproto.goproto_getters) = false;
+  string authority = 1 [(cosmos_proto.scalar) = "cosmos.AddressString", (gogoproto.moretags) = "yaml:\"authority\""];
+  Params params = 2 [(gogoproto.nullable) = false, (gogoproto.moretags) = "yaml:\"params\""];
+}
+message MsgUpdateParamsResponse {}
+
+message MsgUpdateFundingAuthority {
+  option (cosmos.msg.v1.signer) = "authority";
+  option (gogoproto.equal) = true;
+  option (gogoproto.goproto_getters) = false;
+  string authority = 1 [(cosmos_proto.scalar) = "cosmos.AddressString", (gogoproto.moretags) = "yaml:\"authority\""];
+  string funding_authority = 2 [(cosmos_proto.scalar) = "cosmos.AddressString", (gogoproto.moretags) = "yaml:\"funding_authority\""];
+}
+message MsgUpdateFundingAuthorityResponse {}

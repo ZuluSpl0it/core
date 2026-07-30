@@ -1,0 +1,42 @@
+package ustcstaking
+
+import (
+	"fmt"
+
+	"github.com/classic-terra/core/v4/x/ustcstaking/keeper"
+	"github.com/classic-terra/core/v4/x/ustcstaking/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+)
+
+func DefaultGenesisState() *types.GenesisState {
+	return types.DefaultGenesisState()
+}
+
+func ValidateGenesis(data *types.GenesisState) error {
+	return types.ValidateGenesis(data)
+}
+
+func InitGenesis(ctx sdk.Context, k keeper.Keeper, data *types.GenesisState) {
+	if err := ValidateGenesis(data); err != nil {
+		panic(fmt.Sprintf("invalid %s genesis: %s", types.ModuleName, err))
+	}
+	k.SetParams(ctx, data.Params)
+	k.SetRewardState(ctx, data.RewardState)
+	for _, position := range data.Positions {
+		k.SetPosition(ctx, position)
+	}
+	k.SetNextPositionID(ctx, data.NextPositionId)
+}
+
+func ExportGenesis(ctx sdk.Context, k keeper.Keeper) *types.GenesisState {
+	positions := make([]types.Position, 0)
+	k.IteratePositions(ctx, func(position types.Position) bool {
+		positions = append(positions, position)
+		return false
+	})
+	state := types.NewGenesisState(k.GetParams(ctx), positions, k.GetRewardState(ctx), k.GetNextPositionID(ctx))
+	if err := ValidateGenesis(state); err != nil {
+		panic(fmt.Sprintf("invalid exported %s genesis: %s", types.ModuleName, err))
+	}
+	return state
+}
