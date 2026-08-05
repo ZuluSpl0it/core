@@ -49,7 +49,7 @@ func ValidateGenesis(genesis *GenesisState) error {
 		if _, err := sdk.AccAddressFromBech32(position.Owner); err != nil {
 			return ErrInvalidPosition.Wrapf("position %d owner: %s", position.Id, err)
 		}
-		if err := validateCoin(position.Principal); err != nil {
+		if err := validatePrincipal(position.Principal, position.Status); err != nil {
 			return ErrInvalidPosition.Wrapf("position %d principal: %s", position.Id, err)
 		}
 		if err := validateClaimable(position.ClaimableRewards); err != nil {
@@ -91,8 +91,17 @@ func ValidateGenesis(genesis *GenesisState) error {
 	return nil
 }
 
-func validateCoin(coin sdk.Coin) error {
-	if coin.Denom != BondDenom || coin.Amount.IsNil() || !coin.Amount.IsPositive() {
+func validatePrincipal(coin sdk.Coin, status PositionStatus) error {
+	if coin.Denom != BondDenom || coin.Amount.IsNil() {
+		return ErrInvalidDenom.Wrapf("expected %s principal coin", BondDenom)
+	}
+	if status == PositionStatus_POSITION_STATUS_WITHDRAWN {
+		if !coin.Amount.IsZero() {
+			return ErrInvalidDenom.Wrapf("expected zero %s principal for withdrawn position", BondDenom)
+		}
+		return nil
+	}
+	if !coin.Amount.IsPositive() {
 		return ErrInvalidDenom.Wrapf("expected positive %s coin", BondDenom)
 	}
 	return nil
