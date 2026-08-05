@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 
 	"github.com/classic-terra/core/v4/x/market/simulation"
+	ustcstakingcli "github.com/classic-terra/core/v4/x/ustcstaking/client/cli"
 	"github.com/classic-terra/core/v4/x/ustcstaking/keeper"
 	"github.com/classic-terra/core/v4/x/ustcstaking/types"
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -58,8 +59,8 @@ func (AppModuleBasic) RegisterGRPCGatewayRoutes(clientCtx client.Context, mux *r
 	_ = types.RegisterQueryHandlerClient(context.Background(), mux, types.NewQueryClient(clientCtx))
 }
 
-func (AppModuleBasic) GetTxCmd() *cobra.Command    { return nil }
-func (AppModuleBasic) GetQueryCmd() *cobra.Command { return nil }
+func (AppModuleBasic) GetTxCmd() *cobra.Command    { return ustcstakingcli.GetTxCmd() }
+func (AppModuleBasic) GetQueryCmd() *cobra.Command { return ustcstakingcli.GetQueryCmd() }
 
 func (AppModule) ConsensusVersion() uint64 { return 1 }
 
