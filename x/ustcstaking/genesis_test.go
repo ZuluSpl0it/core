@@ -35,6 +35,10 @@ func (exportTestBankKeeper) GetBalance(context.Context, sdk.AccAddress, string) 
 	return sdk.NewCoin(types.BondDenom, math.ZeroInt())
 }
 
+func (exportTestBankKeeper) GetAllBalances(context.Context, sdk.AccAddress) sdk.Coins {
+	return sdk.NewCoins()
+}
+
 func TestWithdrawnPositionExportsWithoutPanic(t *testing.T) {
 	key := storetypes.NewKVStoreKey(types.StoreKey)
 	db := dbm.NewMemDB()

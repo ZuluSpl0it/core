@@ -77,7 +77,9 @@ func (am AppModule) InitGenesis(ctx sdk.Context, cdc codec.JSONCodec, data json.
 
 func (AppModule) QuerierRoute() string { return types.QuerierRoute }
 
-func (AppModule) RegisterInvariants(_ sdk.InvariantRegistry) {}
+func (am AppModule) RegisterInvariants(registry sdk.InvariantRegistry) {
+	keeper.RegisterInvariants(registry, am.keeper)
+}
 
 func (am AppModule) RegisterServices(cfg module.Configurator) {
 	types.RegisterQueryServer(cfg.QueryServer(), keeper.NewQueryServerImpl(am.keeper))

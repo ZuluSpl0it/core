@@ -23,9 +23,14 @@ func InitGenesis(ctx sdk.Context, k keeper.Keeper, data *types.GenesisState) {
 	k.SetParams(ctx, data.Params)
 	k.SetRewardState(ctx, data.RewardState)
 	for _, position := range data.Positions {
-		k.SetPosition(ctx, position)
+		if err := k.SetPosition(ctx, position); err != nil {
+			panic(fmt.Sprintf("invalid %s position: %s", types.ModuleName, err))
+		}
 	}
 	k.SetNextPositionID(ctx, data.NextPositionId)
+	if err := k.ValidateState(ctx); err != nil {
+		panic(fmt.Sprintf("invalid %s state: %s", types.ModuleName, err))
+	}
 }
 
 func ExportGenesis(ctx sdk.Context, k keeper.Keeper) *types.GenesisState {
