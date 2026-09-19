@@ -2,6 +2,8 @@ package keeper
 
 import (
 	"context"
+	"strconv"
+	"time"
 
 	"cosmossdk.io/math"
 	"github.com/classic-terra/core/v4/x/ustcstaking/types"
@@ -67,6 +69,13 @@ func (k msgServer) Stake(goCtx context.Context, msg *types.MsgStake) (*types.Msg
 	}
 	state.TotalShares = state.TotalShares.Add(shares)
 	k.SetRewardState(ctx, state)
+	ctx.EventManager().EmitEvent(sdk.NewEvent(types.EventTypeStake,
+		sdk.NewAttribute("position_id", strconv.FormatUint(positionID, 10)),
+		sdk.NewAttribute("owner", position.Owner),
+		sdk.NewAttribute("amount", position.Principal.String()),
+		sdk.NewAttribute("lock_tier_id", strconv.FormatUint(uint64(position.LockTierId), 10)),
+		sdk.NewAttribute("shares", position.Shares.String()),
+	))
 
 	return &types.MsgStakeResponse{PositionId: positionID}, nil
 }
@@ -105,6 +114,12 @@ func (k msgServer) BeginUnbonding(goCtx context.Context, msg *types.MsgBeginUnbo
 	position.UnbondingEndTime = &end
 	k.SetPosition(ctx, position)
 	k.SetRewardState(ctx, state)
+	ctx.EventManager().EmitEvent(sdk.NewEvent(types.EventTypeBeginUnbonding,
+		sdk.NewAttribute("position_id", strconv.FormatUint(position.Id, 10)),
+		sdk.NewAttribute("owner", position.Owner),
+		sdk.NewAttribute("unbonding_end_time", position.UnbondingEndTime.UTC().Format(time.RFC3339Nano)),
+		sdk.NewAttribute("claimable_rewards", position.ClaimableRewards.String()),
+	))
 	return &types.MsgBeginUnbondingResponse{}, nil
 }
 
@@ -130,9 +145,15 @@ func (k msgServer) Withdraw(goCtx context.Context, msg *types.MsgWithdraw) (*typ
 	if err := k.bankKeeper.SendCoinsFromModuleToAccount(ctx, types.PrincipalPoolName, owner, sdk.NewCoins(position.Principal)); err != nil {
 		return nil, err
 	}
+	principal := position.Principal
 	position.Principal = sdk.NewCoin(types.BondDenom, math.ZeroInt())
 	position.Status = types.PositionStatus_POSITION_STATUS_WITHDRAWN
 	k.SetPosition(ctx, position)
+	ctx.EventManager().EmitEvent(sdk.NewEvent(types.EventTypeWithdraw,
+		sdk.NewAttribute("position_id", strconv.FormatUint(position.Id, 10)),
+		sdk.NewAttribute("owner", position.Owner),
+		sdk.NewAttribute("principal", principal.String()),
+	))
 	return &types.MsgWithdrawResponse{}, nil
 }
 
@@ -160,6 +181,11 @@ func (k msgServer) ClaimRewards(goCtx context.Context, msg *types.MsgClaimReward
 		amount = math.ZeroInt()
 	}
 	if amount.IsZero() {
+		ctx.EventManager().EmitEvent(sdk.NewEvent(types.EventTypeClaimRewards,
+			sdk.NewAttribute("position_id", strconv.FormatUint(position.Id, 10)),
+			sdk.NewAttribute("owner", position.Owner),
+			sdk.NewAttribute("amount", sdk.NewCoin(types.BondDenom, amount).String()),
+		))
 		return &types.MsgClaimRewardsResponse{Amount: sdk.NewCoin(types.BondDenom, amount)}, nil
 	}
 	pool := k.bankKeeper.GetBalance(ctx, authtypes.NewModuleAddress(types.RewardPoolName), types.BondDenom)
@@ -180,6 +206,11 @@ func (k msgServer) ClaimRewards(goCtx context.Context, msg *types.MsgClaimReward
 		position.ClaimableRewards = sdk.NewCoin(types.BondDenom, math.ZeroInt())
 	}
 	k.SetPosition(ctx, position)
+	ctx.EventManager().EmitEvent(sdk.NewEvent(types.EventTypeClaimRewards,
+		sdk.NewAttribute("position_id", strconv.FormatUint(position.Id, 10)),
+		sdk.NewAttribute("owner", position.Owner),
+		sdk.NewAttribute("amount", sdk.NewCoin(types.BondDenom, amount).String()),
+	))
 	return &types.MsgClaimRewardsResponse{Amount: sdk.NewCoin(types.BondDenom, amount)}, nil
 }
 
@@ -192,10 +223,20 @@ func (k msgServer) FundRewards(goCtx context.Context, msg *types.MsgFundRewards)
 	if msg.Sender != params.FundingAuthority {
 		return nil, types.ErrUnauthorized
 	}
+	before := k.GetRewardState(ctx).RewardIndex
 	sender, _ := sdk.AccAddressFromBech32(msg.Sender)
 	if err := k.Keeper.FundRewards(ctx, sender, msg.Amount); err != nil {
 		return nil, err
 	}
+	after := k.GetRewardState(ctx).RewardIndex
+	pool := k.bankKeeper.GetBalance(ctx, authtypes.NewModuleAddress(types.RewardPoolName), types.BondDenom)
+	ctx.EventManager().EmitEvent(sdk.NewEvent(types.EventTypeFundRewards,
+		sdk.NewAttribute("sender", msg.Sender),
+		sdk.NewAttribute("amount", msg.Amount.String()),
+		sdk.NewAttribute("reward_index_before", before.String()),
+		sdk.NewAttribute("reward_index_after", after.String()),
+		sdk.NewAttribute("reward_pool_balance", pool.String()),
+	))
 	return &types.MsgFundRewardsResponse{Amount: msg.Amount}, nil
 }
 
@@ -209,6 +250,11 @@ func (k msgServer) UpdateParams(goCtx context.Context, msg *types.MsgUpdateParam
 		return nil, err
 	}
 	k.SetParams(ctx, msg.Params)
+	ctx.EventManager().EmitEvent(sdk.NewEvent(types.EventTypeUpdateParams,
+		sdk.NewAttribute("authority", msg.Authority),
+		sdk.NewAttribute("paused", strconv.FormatBool(msg.Params.Paused)),
+		sdk.NewAttribute("lock_tier_count", strconv.Itoa(len(msg.Params.LockTiers))),
+	))
 	return &types.MsgUpdateParamsResponse{}, nil
 }
 
@@ -221,8 +267,14 @@ func (k msgServer) UpdateFundingAuthority(goCtx context.Context, msg *types.MsgU
 	if _, err := sdk.AccAddressFromBech32(msg.FundingAuthority); err != nil {
 		return nil, err
 	}
+	oldFundingAuthority := params.FundingAuthority
 	params.FundingAuthority = msg.FundingAuthority
 	k.SetParams(ctx, params)
+	ctx.EventManager().EmitEvent(sdk.NewEvent(types.EventTypeUpdateFundingAuthority,
+		sdk.NewAttribute("authority", msg.Authority),
+		sdk.NewAttribute("old_funding_authority", oldFundingAuthority),
+		sdk.NewAttribute("new_funding_authority", msg.FundingAuthority),
+	))
 	return &types.MsgUpdateFundingAuthorityResponse{}, nil
 }
 
