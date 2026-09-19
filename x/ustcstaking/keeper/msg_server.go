@@ -62,7 +62,9 @@ func (k msgServer) Stake(goCtx context.Context, msg *types.MsgStake) (*types.Msg
 		ClaimableRewards: sdk.NewCoin(types.BondDenom, math.ZeroInt()),
 		LockDuration:     tier.Duration,
 	}
-	k.SetPosition(ctx, position)
+	if err := k.SetPosition(ctx, position); err != nil {
+		return nil, err
+	}
 	k.SetNextPositionID(ctx, positionID+1)
 	if state.TotalShares.IsNil() {
 		state.TotalShares = math.ZeroInt()
@@ -112,7 +114,9 @@ func (k msgServer) BeginUnbonding(goCtx context.Context, msg *types.MsgBeginUnbo
 	position.Status = types.PositionStatus_POSITION_STATUS_UNBONDING
 	end := ctx.BlockTime().Add(*position.LockDuration)
 	position.UnbondingEndTime = &end
-	k.SetPosition(ctx, position)
+	if err := k.SetPosition(ctx, position); err != nil {
+		return nil, err
+	}
 	k.SetRewardState(ctx, state)
 	ctx.EventManager().EmitEvent(sdk.NewEvent(types.EventTypeBeginUnbonding,
 		sdk.NewAttribute("position_id", strconv.FormatUint(position.Id, 10)),
@@ -148,7 +152,9 @@ func (k msgServer) Withdraw(goCtx context.Context, msg *types.MsgWithdraw) (*typ
 	principal := position.Principal
 	position.Principal = sdk.NewCoin(types.BondDenom, math.ZeroInt())
 	position.Status = types.PositionStatus_POSITION_STATUS_WITHDRAWN
-	k.SetPosition(ctx, position)
+	if err := k.SetPosition(ctx, position); err != nil {
+		return nil, err
+	}
 	ctx.EventManager().EmitEvent(sdk.NewEvent(types.EventTypeWithdraw,
 		sdk.NewAttribute("position_id", strconv.FormatUint(position.Id, 10)),
 		sdk.NewAttribute("owner", position.Owner),
@@ -205,7 +211,9 @@ func (k msgServer) ClaimRewards(goCtx context.Context, msg *types.MsgClaimReward
 	} else {
 		position.ClaimableRewards = sdk.NewCoin(types.BondDenom, math.ZeroInt())
 	}
-	k.SetPosition(ctx, position)
+	if err := k.SetPosition(ctx, position); err != nil {
+		return nil, err
+	}
 	ctx.EventManager().EmitEvent(sdk.NewEvent(types.EventTypeClaimRewards,
 		sdk.NewAttribute("position_id", strconv.FormatUint(position.Id, 10)),
 		sdk.NewAttribute("owner", position.Owner),
