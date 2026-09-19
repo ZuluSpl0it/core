@@ -32,18 +32,24 @@ func (q queryServer) PositionsByOwner(goCtx context.Context, req *types.QueryPos
 		return nil, sdkerrors.ErrInvalidAddress.Wrapf("owner: %s", err)
 	}
 	ctx := sdk.UnwrapSDKContext(goCtx)
-	store := prefix.NewStore(ctx.KVStore(q.storeKey), types.PositionKeyPrefix)
+	index := prefix.NewStore(ctx.KVStore(q.storeKey), types.OwnerPositionKeyPrefix)
+	owner, _ := sdk.AccAddressFromBech32(req.Owner)
+	store := prefix.NewStore(index, owner.Bytes())
 	positions := make([]types.Position, 0)
-	pageRes, err := query.FilteredPaginate(store, req.Pagination, func(_ []byte, value []byte, accumulate bool) (bool, error) {
-		var position types.Position
-		q.cdc.MustUnmarshal(value, &position)
+	pageRes, err := query.Paginate(store, req.Pagination, func(key []byte, _ []byte) error {
+		if len(key) != 8 {
+			return types.ErrInvalidPosition.Wrapf("invalid owner index key length %d", len(key))
+		}
+		positionID := sdk.BigEndianToUint64(key)
+		position, found := q.GetPosition(ctx, positionID)
+		if !found {
+			return types.ErrInvalidPosition.Wrapf("owner index references missing position %d", positionID)
+		}
 		if position.Owner != req.Owner {
-			return false, nil
+			return types.ErrInvalidPosition.Wrapf("owner index position %d belongs to %s", positionID, position.Owner)
 		}
-		if accumulate {
-			positions = append(positions, position)
-		}
-		return true, nil
+		positions = append(positions, position)
+		return nil
 	})
 	if err != nil {
 		return nil, err
