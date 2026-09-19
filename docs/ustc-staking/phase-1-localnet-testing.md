@@ -10,7 +10,8 @@
 
 ## Scope
 
-This runbook tests the Phase 1 code currently present on branch `ustc_staking`:
+This runbook tests the Phase 1 code currently present on branch `ustc_staking`
+and its release-hardening branch:
 
 - governance-controlled parameters;
 - USTC-only (`uusd`) positions;
@@ -23,6 +24,11 @@ This runbook tests the Phase 1 code currently present on branch `ustc_staking`:
 - isolation from normal validator staking.
 
 It does not test TreasuryManager/POL funding or the validator incentive program. Those are Phase 2 and Phase 3 designs and are not implemented in this branch.
+
+Before public-testnet consideration, also run the release gates in
+`phase-1-release-readiness.md`. This campaign proves behavior on a fresh
+seven-validator network; it does not by itself prove a live-chain store
+migration or dependency security clearance.
 
 ## Important behavior
 

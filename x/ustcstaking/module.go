@@ -4,9 +4,9 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/classic-terra/core/v4/x/market/simulation"
 	ustcstakingcli "github.com/classic-terra/core/v4/x/ustcstaking/client/cli"
 	"github.com/classic-terra/core/v4/x/ustcstaking/keeper"
+	"github.com/classic-terra/core/v4/x/ustcstaking/simulation"
 	"github.com/classic-terra/core/v4/x/ustcstaking/types"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -77,7 +77,9 @@ func (am AppModule) InitGenesis(ctx sdk.Context, cdc codec.JSONCodec, data json.
 
 func (AppModule) QuerierRoute() string { return types.QuerierRoute }
 
-func (AppModule) RegisterInvariants(_ sdk.InvariantRegistry) {}
+func (am AppModule) RegisterInvariants(registry sdk.InvariantRegistry) {
+	keeper.RegisterInvariants(registry, am.keeper)
+}
 
 func (am AppModule) RegisterServices(cfg module.Configurator) {
 	types.RegisterQueryServer(cfg.QueryServer(), keeper.NewQueryServerImpl(am.keeper))

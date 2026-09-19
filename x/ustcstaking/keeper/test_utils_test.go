@@ -15,6 +15,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/stretchr/testify/require"
 )
 
@@ -24,6 +25,7 @@ type recordingBankKeeper struct {
 	lastRecipientModule       string
 	lastAccountToModuleAmount sdk.Coins
 	rewardPoolBalance         sdk.Coin
+	principalPoolBalance      sdk.Coin
 }
 
 func (b *recordingBankKeeper) SendCoinsFromAccountToModule(_ context.Context, _ sdk.AccAddress, module string, amount sdk.Coins) error {
@@ -40,6 +42,19 @@ func (b *recordingBankKeeper) SendCoinsFromModuleToAccount(context.Context, stri
 
 func (b *recordingBankKeeper) GetBalance(context.Context, sdk.AccAddress, string) sdk.Coin {
 	return b.rewardPoolBalance
+}
+
+func (b *recordingBankKeeper) GetAllBalances(_ context.Context, addr sdk.AccAddress) sdk.Coins {
+	if addr.Equals(authtypes.NewModuleAddress(types.PrincipalPoolName)) {
+		if b.principalPoolBalance.IsNil() {
+			return sdk.NewCoins()
+		}
+		return sdk.NewCoins(b.principalPoolBalance)
+	}
+	if b.rewardPoolBalance.IsNil() {
+		return sdk.NewCoins()
+	}
+	return sdk.NewCoins(b.rewardPoolBalance)
 }
 
 func newKeeperTest(t *testing.T) (sdk.Context, Keeper) {

@@ -34,6 +34,9 @@ func (p Params) Validate() error {
 
 	seen := make(map[uint32]struct{}, len(p.LockTiers))
 	for _, tier := range p.LockTiers {
+		if tier.Id == 0 {
+			return ErrInvalidLockTier.Wrap("tier id must be positive")
+		}
 		if _, exists := seen[tier.Id]; exists {
 			return ErrDuplicateLockTier.Wrapf("tier id %d", tier.Id)
 		}

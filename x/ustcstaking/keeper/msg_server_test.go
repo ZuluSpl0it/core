@@ -33,6 +33,74 @@ func TestStakeTransfersOnlyUSTCToPrincipalPool(t *testing.T) {
 	require.Equal(t, sdk.NewCoins(sdk.NewCoin(types.BondDenom, math.NewInt(100))), bank.lastAccountToModuleAmount)
 }
 
+func TestStakeEmitsModuleEvent(t *testing.T) {
+	ctx, keeper := newKeeperTest(t)
+	owner := testAddress()
+	configureKeeper(t, ctx, keeper, owner)
+	ctx = ctx.WithEventManager(sdk.NewEventManager())
+
+	_, err := NewMsgServerImpl(keeper).Stake(sdk.WrapSDKContext(ctx), &types.MsgStake{
+		Owner: owner, Amount: sdk.NewCoin(types.BondDenom, math.NewInt(100)), LockTierId: 1,
+	})
+
+	require.NoError(t, err)
+	event := findModuleEvent(t, ctx, "ustcstaking_stake")
+	require.Equal(t, owner, eventAttribute(event, "owner"))
+	require.Equal(t, "100uusd", eventAttribute(event, "amount"))
+}
+
+func TestRejectedStakeEmitsNoModuleEvent(t *testing.T) {
+	ctx, keeper := newKeeperTest(t)
+	owner := testAddress()
+	configureKeeper(t, ctx, keeper, owner)
+	ctx = ctx.WithEventManager(sdk.NewEventManager())
+
+	_, err := NewMsgServerImpl(keeper).Stake(sdk.WrapSDKContext(ctx), &types.MsgStake{
+		Owner: owner, Amount: sdk.NewCoin("uluna", math.NewInt(100)), LockTierId: 1,
+	})
+
+	require.Error(t, err)
+	for _, event := range ctx.EventManager().Events() {
+		require.NotEqual(t, "ustcstaking_stake", event.Type)
+	}
+}
+
+func findModuleEvent(t *testing.T, ctx sdk.Context, eventType string) sdk.Event {
+	t.Helper()
+	for _, event := range ctx.EventManager().Events() {
+		if event.Type == eventType {
+			return event
+		}
+	}
+	t.Fatalf("missing event %s", eventType)
+	return sdk.Event{}
+}
+
+func eventAttribute(event sdk.Event, key string) string {
+	for _, attribute := range event.Attributes {
+		if attribute.Key == key {
+			return attribute.Value
+		}
+	}
+	return ""
+}
+
+func TestStakeRejectsPositionIDExhaustionBeforeTransfer(t *testing.T) {
+	ctx, keeper := newKeeperTest(t)
+	owner := testAddress()
+	configureKeeper(t, ctx, keeper, owner)
+	keeper.SetNextPositionID(ctx, ^uint64(0))
+	server := NewMsgServerImpl(keeper)
+	bank := keeper.bankKeeper.(*recordingBankKeeper)
+
+	_, err := server.Stake(sdk.WrapSDKContext(ctx), &types.MsgStake{
+		Owner: owner, Amount: sdk.NewCoin(types.BondDenom, math.NewInt(100)), LockTierId: 1,
+	})
+
+	require.ErrorIs(t, err, types.ErrPositionIDExhausted)
+	require.Zero(t, bank.accountToModuleCalls)
+}
+
 func TestBeginUnbondingSettlesRewardsAndStopsFutureAccrual(t *testing.T) {
 	ctx, keeper := newKeeperTest(t)
 	owner := testAddress()

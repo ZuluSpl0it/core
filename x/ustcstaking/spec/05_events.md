@@ -4,9 +4,12 @@ order: 5
 
 # Events
 
-The current implementation does not yet emit module-specific `sdk.Event`s from message handlers. Transaction results still expose the SDK's standard message metadata, but indexers should not assume dedicated `stake`, `unbond`, `withdraw`, `claim`, or `fund` events exist until an event schema is added.
+Message handlers emit module-specific `sdk.Event`s only after successful bank
+transfers and state writes. Failed messages emit no module-specific event.
+Indexers can use these events for notification, but must rebuild state from
+queries or exported genesis when correcting historical data.
 
-Before production release, the recommended event contract is:
+The production event contract is:
 
 | Type | Attribute keys |
 |---|---|
@@ -14,8 +17,11 @@ Before production release, the recommended event contract is:
 | `ustcstaking_begin_unbonding` | `position_id`, `owner`, `unbonding_end_time`, `claimable_rewards` |
 | `ustcstaking_withdraw` | `position_id`, `owner`, `principal` |
 | `ustcstaking_claim_rewards` | `position_id`, `owner`, `amount` |
-| `ustcstaking_fund_rewards` | `sender`, `amount`, `reward_index` |
+| `ustcstaking_fund_rewards` | `sender`, `amount`, `reward_index_before`, `reward_index_after`, `reward_pool_balance` |
 | `ustcstaking_update_params` | `authority`, `paused`, `lock_tier_count` |
-| `ustcstaking_update_funding_authority` | `authority`, `funding_authority` |
+| `ustcstaking_update_funding_authority` | `authority`, `old_funding_authority`, `new_funding_authority` |
 
-The event names and attributes above are a specification recommendation, not current behavior. They should be finalized before clients or indexers depend on them.
+Coin attributes use canonical SDK strings. Decimal indexes use canonical
+decimal strings. Timestamps use UTC RFC3339Nano. Event types and attribute
+keys are stable API surface and require a specification revision before they
+are renamed.

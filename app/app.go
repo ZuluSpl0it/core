@@ -21,6 +21,7 @@ import (
 	// upgrades
 	"github.com/classic-terra/core/v4/app/upgrades"
 	// v9 had been used by tax2gas and has to be skipped
+	ustcstakingupgrade "github.com/classic-terra/core/v4/app/upgrades/ustc_staking"
 	v10_1 "github.com/classic-terra/core/v4/app/upgrades/v10_1"
 	v11 "github.com/classic-terra/core/v4/app/upgrades/v11"
 	v11_1 "github.com/classic-terra/core/v4/app/upgrades/v11_1"
@@ -107,6 +108,7 @@ var (
 		v13_1.Upgrade,
 		v14_1.Upgrade,
 		v14_2.Upgrade,
+		ustcstakingupgrade.Upgrade,
 	}
 
 	// Forks defines forks to be applied to the network

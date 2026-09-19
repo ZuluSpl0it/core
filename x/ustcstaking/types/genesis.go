@@ -39,6 +39,9 @@ func ValidateGenesis(genesis *GenesisState) error {
 	seen := make(map[uint64]struct{}, len(genesis.Positions))
 	maxID := uint64(0)
 	for _, position := range genesis.Positions {
+		if position.Id == ^uint64(0) {
+			return ErrInvalidGenesis.Wrap("maximum position id cannot be incremented")
+		}
 		if _, exists := seen[position.Id]; exists || position.Id == 0 {
 			return ErrInvalidPosition.Wrapf("duplicate or zero position id %d", position.Id)
 		}
@@ -55,18 +58,26 @@ func ValidateGenesis(genesis *GenesisState) error {
 		if err := validateClaimable(position.ClaimableRewards); err != nil {
 			return ErrInvalidPosition.Wrapf("position %d claimable rewards: %s", position.Id, err)
 		}
+		if position.LockDuration == nil || *position.LockDuration <= 0 ||
+			position.ShareMultiplier.IsNil() || !position.ShareMultiplier.IsPositive() {
+			return ErrInvalidLockSnapshot.Wrapf("position %d has invalid lock snapshot", position.Id)
+		}
 		if (!position.Shares.IsNil() && position.Shares.IsNegative()) ||
 			(!position.RewardDebt.IsNil() && position.RewardDebt.IsNegative()) {
 			return ErrInvalidPosition.Wrapf("position %d has negative accounting state", position.Id)
 		}
 		switch position.Status {
 		case PositionStatus_POSITION_STATUS_ACTIVE:
+			if position.UnbondingEndTime != nil {
+				return ErrInvalidPosition.Wrapf("active position %d has unbonding completion time", position.Id)
+			}
 			if position.Shares.IsNil() || !position.Shares.IsPositive() {
 				return ErrInvalidPosition.Wrapf("active position %d must have shares", position.Id)
 			}
 			activeShares = activeShares.Add(position.Shares)
 		case PositionStatus_POSITION_STATUS_UNBONDING:
-			if (!position.Shares.IsNil() && position.Shares.IsPositive()) || position.UnbondingEndTime == nil {
+			if (!position.Shares.IsNil() && position.Shares.IsPositive()) || position.UnbondingEndTime == nil ||
+				(!position.RewardDebt.IsNil() && !position.RewardDebt.IsZero()) {
 				return ErrInvalidPosition.Wrapf("unbonding position %d has invalid shares or maturity", position.Id)
 			}
 		case PositionStatus_POSITION_STATUS_WITHDRAWN:
@@ -108,10 +119,7 @@ func validatePrincipal(coin sdk.Coin, status PositionStatus) error {
 }
 
 func validateClaimable(coin sdk.Coin) error {
-	if coin.Denom == "" && (coin.Amount.IsNil() || coin.Amount.IsZero()) {
-		return nil
-	}
-	if coin.Denom != BondDenom || (!coin.Amount.IsNil() && coin.Amount.IsNegative()) {
+	if coin.Denom != BondDenom || coin.Amount.IsNil() || coin.Amount.IsNegative() {
 		return ErrInvalidDenom.Wrapf("expected non-negative %s claimable rewards", BondDenom)
 	}
 	return nil
