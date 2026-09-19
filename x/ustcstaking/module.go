@@ -4,9 +4,9 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/classic-terra/core/v4/x/market/simulation"
 	ustcstakingcli "github.com/classic-terra/core/v4/x/ustcstaking/client/cli"
 	"github.com/classic-terra/core/v4/x/ustcstaking/keeper"
+	"github.com/classic-terra/core/v4/x/ustcstaking/simulation"
 	"github.com/classic-terra/core/v4/x/ustcstaking/types"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cosmos/cosmos-sdk/client"
