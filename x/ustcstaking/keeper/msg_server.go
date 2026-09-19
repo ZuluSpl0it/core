@@ -34,6 +34,10 @@ func (k msgServer) Stake(goCtx context.Context, msg *types.MsgStake) (*types.Msg
 	if !shares.IsPositive() {
 		return nil, types.ErrInvalidLockTier.Wrap("amount and multiplier produce zero shares")
 	}
+	positionID := k.GetNextPositionID(ctx)
+	if positionID == ^uint64(0) {
+		return nil, types.ErrPositionIDExhausted
+	}
 	owner, _ := sdk.AccAddressFromBech32(msg.Owner)
 	if err := k.bankKeeper.SendCoinsFromAccountToModule(ctx, owner, types.PrincipalPoolName, sdk.NewCoins(msg.Amount)); err != nil {
 		return nil, err
@@ -44,7 +48,6 @@ func (k msgServer) Stake(goCtx context.Context, msg *types.MsgStake) (*types.Msg
 	if index.IsNil() {
 		index = math.LegacyZeroDec()
 	}
-	positionID := k.GetNextPositionID(ctx)
 	position := types.Position{
 		Id:               positionID,
 		Owner:            msg.Owner,

@@ -18,4 +18,7 @@ var (
 	ErrPositionOwner        = errors.Register(ModuleName, 13, "position owner mismatch")
 	ErrInvalidPositionState = errors.Register(ModuleName, 14, "invalid position state")
 	ErrNotMatured           = errors.Register(ModuleName, 15, "position has not matured")
+	ErrPositionIDExhausted  = errors.Register(ModuleName, 16, "position ID exhausted")
+	ErrInvalidLockSnapshot  = errors.Register(ModuleName, 17, "invalid lock snapshot")
+	ErrCorruptOwnerIndex    = errors.Register(ModuleName, 18, "corrupt owner index")
 )

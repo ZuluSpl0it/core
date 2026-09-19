@@ -34,6 +34,13 @@ func TestParamsValidateRejectsNonPositiveMultipliers(t *testing.T) {
 	require.ErrorIs(t, params.Validate(), ErrInvalidLockTier)
 }
 
+func TestParamsValidateRejectsZeroLockTierID(t *testing.T) {
+	params := DefaultParams()
+	params.LockTiers = []LockTier{{Id: 0, Duration: durationPtr(time.Hour), Multiplier: math.LegacyOneDec()}}
+
+	require.ErrorIs(t, params.Validate(), ErrInvalidLockTier)
+}
+
 func durationPtr(value time.Duration) *time.Duration {
 	return &value
 }

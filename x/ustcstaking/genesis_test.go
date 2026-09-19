@@ -48,6 +48,7 @@ func TestWithdrawnPositionExportsWithoutPanic(t *testing.T) {
 	k := keeper.NewKeeper(cdc, key, exportTestBankKeeper{})
 	owner := sdk.AccAddress(secp256k1.GenPrivKey().PubKey().Address()).String()
 	maturedAt := now.Add(-time.Second)
+	duration := time.Hour
 	k.SetParams(ctx, types.DefaultParams())
 	k.SetRewardState(ctx, types.RewardState{RewardIndex: math.LegacyZeroDec(), TotalShares: math.ZeroInt()})
 	k.SetNextPositionID(ctx, 2)
@@ -56,7 +57,9 @@ func TestWithdrawnPositionExportsWithoutPanic(t *testing.T) {
 		Owner:            owner,
 		Principal:        sdk.NewCoin(types.BondDenom, math.NewInt(100)),
 		Shares:           math.ZeroInt(),
+		ShareMultiplier:  math.LegacyOneDec(),
 		RewardDebt:       math.LegacyZeroDec(),
+		LockDuration:     &duration,
 		UnbondingEndTime: &maturedAt,
 		Status:           types.PositionStatus_POSITION_STATUS_UNBONDING,
 		ClaimableRewards: sdk.NewCoin(types.BondDenom, math.ZeroInt()),

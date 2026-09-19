@@ -33,6 +33,22 @@ func TestStakeTransfersOnlyUSTCToPrincipalPool(t *testing.T) {
 	require.Equal(t, sdk.NewCoins(sdk.NewCoin(types.BondDenom, math.NewInt(100))), bank.lastAccountToModuleAmount)
 }
 
+func TestStakeRejectsPositionIDExhaustionBeforeTransfer(t *testing.T) {
+	ctx, keeper := newKeeperTest(t)
+	owner := testAddress()
+	configureKeeper(t, ctx, keeper, owner)
+	keeper.SetNextPositionID(ctx, ^uint64(0))
+	server := NewMsgServerImpl(keeper)
+	bank := keeper.bankKeeper.(*recordingBankKeeper)
+
+	_, err := server.Stake(sdk.WrapSDKContext(ctx), &types.MsgStake{
+		Owner: owner, Amount: sdk.NewCoin(types.BondDenom, math.NewInt(100)), LockTierId: 1,
+	})
+
+	require.ErrorIs(t, err, types.ErrPositionIDExhausted)
+	require.Zero(t, bank.accountToModuleCalls)
+}
+
 func TestBeginUnbondingSettlesRewardsAndStopsFutureAccrual(t *testing.T) {
 	ctx, keeper := newKeeperTest(t)
 	owner := testAddress()
