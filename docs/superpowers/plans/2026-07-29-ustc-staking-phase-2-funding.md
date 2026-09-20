@@ -1,5 +1,9 @@
 # USTC Staking Phase 2 Funding Implementation Plan
 
+> **Superseded:** This contract-based plan was replaced on 2026-09-19 by
+> `2026-09-19-ustc-staking-phase-2-community-pool-funding.md`. Do not execute
+> this work queue.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add an audited CosmWasm TreasuryManager/POL funding adapter that can send realized USTC revenue to Phase 1 without gaining control of positions, rewards configuration, or user principal.

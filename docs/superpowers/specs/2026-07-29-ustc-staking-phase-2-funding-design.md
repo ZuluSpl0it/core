@@ -1,5 +1,9 @@
 # USTC Staking Phase 2 Funding Design
 
+> **Superseded:** This contract-based design was replaced on 2026-09-19 by
+> `2026-09-19-ustc-staking-phase-2-community-pool-funding-design.md`. Do not
+> implement this document.
+
 ## Decision
 
 Phase 2 uses a separate CosmWasm `TreasuryManager`/POL adapter to convert
