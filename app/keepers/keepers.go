@@ -210,11 +210,6 @@ func NewAppKeepers(
 		authtypes.NewModuleAddress(govtypes.ModuleName).String(),
 		sdklog.NewNopLogger(),
 	)
-	appKeepers.UstcStakingKeeper = ustcstakingkeeper.NewKeeper(
-		appCodec,
-		appKeepers.keys[ustcstakingtypes.StoreKey],
-		appKeepers.BankKeeper,
-	)
 	appKeepers.AuthzKeeper = authzkeeper.NewKeeper(
 		runtime.NewKVStoreService(appKeepers.keys[authzkeeper.StoreKey]),
 		appCodec,
@@ -252,6 +247,12 @@ func NewAppKeepers(
 		appKeepers.StakingKeeper,
 		authtypes.FeeCollectorName,
 		authtypes.NewModuleAddress(govtypes.ModuleName).String(),
+	)
+	appKeepers.UstcStakingKeeper = ustcstakingkeeper.NewKeeper(
+		appCodec,
+		appKeepers.keys[ustcstakingtypes.StoreKey],
+		appKeepers.BankKeeper,
+		communityPoolAdapter{feePool: appKeepers.DistrKeeper.FeePool, bankKeeper: appKeepers.BankKeeper},
 	)
 	appKeepers.SlashingKeeper = slashingkeeper.NewKeeper(
 		appCodec,

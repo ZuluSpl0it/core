@@ -5,6 +5,8 @@ import (
 	"time"
 
 	"cosmossdk.io/math"
+	"github.com/cosmos/cosmos-sdk/x/auth/types"
+	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	"github.com/stretchr/testify/require"
 )
 
@@ -13,6 +15,12 @@ func TestParamsValidateRejectsNonUSTCDenom(t *testing.T) {
 	params.BondDenom = "uluna"
 
 	require.ErrorIs(t, params.Validate(), ErrInvalidDenom)
+}
+
+func TestDefaultParamsUseOnlyGovernanceAuthority(t *testing.T) {
+	params := DefaultParams()
+	require.Equal(t, types.NewModuleAddress(govtypes.ModuleName).String(), params.Authority)
+	require.NoError(t, params.Validate())
 }
 
 func TestParamsValidateRejectsDuplicateTierIDs(t *testing.T) {

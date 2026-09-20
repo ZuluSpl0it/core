@@ -161,13 +161,49 @@ func TestClaimFailsWhenRewardPoolCannotCoverLiability(t *testing.T) {
 	require.Zero(t, keeper.bankKeeper.(*recordingBankKeeper).moduleToAccountCalls)
 }
 
+func TestFundRewardsRequiresGovernanceAuthority(t *testing.T) {
+	ctx, keeper := newKeeperTest(t)
+	authority := testAddress()
+	configureKeeper(t, ctx, keeper, authority)
+	keeper.SetRewardState(ctx, types.RewardState{RewardIndex: math.LegacyZeroDec(), TotalShares: math.NewInt(100)})
+
+	_, err := NewMsgServerImpl(keeper).FundRewards(sdk.WrapSDKContext(ctx), &types.MsgFundRewards{
+		Authority: testAddress(), Amount: sdk.NewCoin(types.BondDenom, math.NewInt(40)),
+	})
+
+	require.ErrorIs(t, err, types.ErrUnauthorized)
+	require.Zero(t, keeper.communityPoolKeeper.(*recordingCommunityPoolKeeper).calls)
+}
+
+func TestFundRewardsEventIdentifiesCommunityPool(t *testing.T) {
+	ctx, keeper := newKeeperTest(t)
+	authority := testAddress()
+	configureKeeper(t, ctx, keeper, authority)
+	keeper.SetRewardState(ctx, types.RewardState{RewardIndex: math.LegacyZeroDec(), TotalShares: math.NewInt(100)})
+	ctx = ctx.WithEventManager(sdk.NewEventManager())
+
+	_, err := NewMsgServerImpl(keeper).FundRewards(sdk.WrapSDKContext(ctx), &types.MsgFundRewards{
+		Authority: authority, Amount: sdk.NewCoin(types.BondDenom, math.NewInt(40)),
+	})
+
+	require.NoError(t, err)
+	event := findModuleEvent(t, ctx, types.EventTypeFundRewards)
+	require.Equal(t, authority, eventAttribute(event, "authority"))
+	require.Equal(t, "community_pool", eventAttribute(event, "source"))
+	require.Equal(t, "40uusd", eventAttribute(event, "amount"))
+	require.Equal(t, "0.000000000000000000", eventAttribute(event, "reward_index_before"))
+	require.Equal(t, "0.400000000000000000", eventAttribute(event, "reward_index_after"))
+	require.Equal(t, "0uusd", eventAttribute(event, "reward_pool_balance_before"))
+	require.Equal(t, "40uusd", eventAttribute(event, "reward_pool_balance_after"))
+}
+
 func configureKeeper(t *testing.T, ctx sdk.Context, keeper Keeper, authority string) {
 	t.Helper()
 	duration := 24 * time.Hour
 	keeper.SetParams(ctx, types.Params{
 		BondDenom: types.BondDenom,
 		LockTiers: []types.LockTier{{Id: 1, Duration: &duration, Multiplier: math.LegacyNewDecWithPrec(15, 1)}},
-		Authority: authority, FundingAuthority: authority,
+		Authority: authority,
 	})
 	keeper.SetRewardState(ctx, types.RewardState{RewardIndex: math.LegacyZeroDec(), TotalShares: math.ZeroInt()})
 }

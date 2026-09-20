@@ -228,22 +228,24 @@ func (k msgServer) FundRewards(goCtx context.Context, msg *types.MsgFundRewards)
 	if params.Paused {
 		return nil, types.ErrModulePaused
 	}
-	if msg.Sender != params.FundingAuthority {
+	if msg.Authority != params.Authority {
 		return nil, types.ErrUnauthorized
 	}
 	before := k.GetRewardState(ctx).RewardIndex
-	sender, _ := sdk.AccAddressFromBech32(msg.Sender)
-	if err := k.Keeper.FundRewards(ctx, sender, msg.Amount); err != nil {
+	beforePool := k.bankKeeper.GetBalance(ctx, authtypes.NewModuleAddress(types.RewardPoolName), types.BondDenom)
+	if err := k.Keeper.FundRewards(ctx, msg.Amount); err != nil {
 		return nil, err
 	}
 	after := k.GetRewardState(ctx).RewardIndex
 	pool := k.bankKeeper.GetBalance(ctx, authtypes.NewModuleAddress(types.RewardPoolName), types.BondDenom)
 	ctx.EventManager().EmitEvent(sdk.NewEvent(types.EventTypeFundRewards,
-		sdk.NewAttribute("sender", msg.Sender),
+		sdk.NewAttribute("authority", msg.Authority),
+		sdk.NewAttribute("source", "community_pool"),
 		sdk.NewAttribute("amount", msg.Amount.String()),
 		sdk.NewAttribute("reward_index_before", before.String()),
 		sdk.NewAttribute("reward_index_after", after.String()),
-		sdk.NewAttribute("reward_pool_balance", pool.String()),
+		sdk.NewAttribute("reward_pool_balance_before", beforePool.String()),
+		sdk.NewAttribute("reward_pool_balance_after", pool.String()),
 	))
 	return &types.MsgFundRewardsResponse{Amount: msg.Amount}, nil
 }
@@ -264,26 +266,6 @@ func (k msgServer) UpdateParams(goCtx context.Context, msg *types.MsgUpdateParam
 		sdk.NewAttribute("lock_tier_count", strconv.Itoa(len(msg.Params.LockTiers))),
 	))
 	return &types.MsgUpdateParamsResponse{}, nil
-}
-
-func (k msgServer) UpdateFundingAuthority(goCtx context.Context, msg *types.MsgUpdateFundingAuthority) (*types.MsgUpdateFundingAuthorityResponse, error) {
-	ctx := sdk.UnwrapSDKContext(goCtx)
-	params := k.GetParams(ctx)
-	if msg.Authority != params.Authority {
-		return nil, types.ErrUnauthorized
-	}
-	if _, err := sdk.AccAddressFromBech32(msg.FundingAuthority); err != nil {
-		return nil, err
-	}
-	oldFundingAuthority := params.FundingAuthority
-	params.FundingAuthority = msg.FundingAuthority
-	k.SetParams(ctx, params)
-	ctx.EventManager().EmitEvent(sdk.NewEvent(types.EventTypeUpdateFundingAuthority,
-		sdk.NewAttribute("authority", msg.Authority),
-		sdk.NewAttribute("old_funding_authority", oldFundingAuthority),
-		sdk.NewAttribute("new_funding_authority", msg.FundingAuthority),
-	))
-	return &types.MsgUpdateFundingAuthorityResponse{}, nil
 }
 
 func findLockTier(params types.Params, id uint32) (types.LockTier, bool) {

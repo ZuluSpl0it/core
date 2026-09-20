@@ -16,7 +16,6 @@ service Msg {
   rpc ClaimRewards(MsgClaimRewards) returns (MsgClaimRewardsResponse);
   rpc FundRewards(MsgFundRewards) returns (MsgFundRewardsResponse);
   rpc UpdateParams(MsgUpdateParams) returns (MsgUpdateParamsResponse);
-  rpc UpdateFundingAuthority(MsgUpdateFundingAuthority) returns (MsgUpdateFundingAuthorityResponse);
 }
 
 message MsgStake {
@@ -57,10 +56,10 @@ message MsgClaimRewards {
 message MsgClaimRewardsResponse { cosmos.base.v1beta1.Coin amount = 1 [(gogoproto.nullable) = false, (gogoproto.moretags) = "yaml:\"amount\""]; }
 
 message MsgFundRewards {
-  option (cosmos.msg.v1.signer) = "sender";
+  option (cosmos.msg.v1.signer) = "authority";
   option (gogoproto.equal) = true;
   option (gogoproto.goproto_getters) = false;
-  string sender = 1 [(cosmos_proto.scalar) = "cosmos.AddressString", (gogoproto.moretags) = "yaml:\"sender\""];
+  string authority = 1 [(cosmos_proto.scalar) = "cosmos.AddressString", (gogoproto.moretags) = "yaml:\"authority\""];
   cosmos.base.v1beta1.Coin amount = 2 [(gogoproto.nullable) = false, (gogoproto.moretags) = "yaml:\"amount\""];
 }
 message MsgFundRewardsResponse { cosmos.base.v1beta1.Coin amount = 1 [(gogoproto.nullable) = false, (gogoproto.moretags) = "yaml:\"amount\""]; }
@@ -73,12 +72,3 @@ message MsgUpdateParams {
   Params params = 2 [(gogoproto.nullable) = false, (gogoproto.moretags) = "yaml:\"params\""];
 }
 message MsgUpdateParamsResponse {}
-
-message MsgUpdateFundingAuthority {
-  option (cosmos.msg.v1.signer) = "authority";
-  option (gogoproto.equal) = true;
-  option (gogoproto.goproto_getters) = false;
-  string authority = 1 [(cosmos_proto.scalar) = "cosmos.AddressString", (gogoproto.moretags) = "yaml:\"authority\""];
-  string funding_authority = 2 [(cosmos_proto.scalar) = "cosmos.AddressString", (gogoproto.moretags) = "yaml:\"funding_authority\""];
-}
-message MsgUpdateFundingAuthorityResponse {}

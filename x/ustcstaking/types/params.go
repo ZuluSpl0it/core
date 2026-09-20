@@ -13,11 +13,10 @@ import (
 func DefaultParams() Params {
 	authority := authtypes.NewModuleAddress(govtypes.ModuleName).String()
 	return Params{
-		BondDenom:        BondDenom,
-		LockTiers:        []LockTier{},
-		Authority:        authority,
-		FundingAuthority: authority,
-		Paused:           false,
+		BondDenom: BondDenom,
+		LockTiers: []LockTier{},
+		Authority: authority,
+		Paused:    false,
 	}
 }
 
@@ -28,10 +27,6 @@ func (p Params) Validate() error {
 	if err := validateAuthority(p.Authority); err != nil {
 		return ErrInvalidAuthority.Wrapf("authority: %s", err)
 	}
-	if err := validateAuthority(p.FundingAuthority); err != nil {
-		return ErrInvalidAuthority.Wrapf("funding authority: %s", err)
-	}
-
 	seen := make(map[uint32]struct{}, len(p.LockTiers))
 	for _, tier := range p.LockTiers {
 		if tier.Id == 0 {
@@ -55,12 +50,6 @@ func validateAuthority(value string) error {
 	if value == "" {
 		return fmt.Errorf("address is empty")
 	}
-	_, err := sdkAccAddressFromBech32(value)
+	_, err := sdk.AccAddressFromBech32(value)
 	return err
-}
-
-// Kept behind a small helper so address validation remains easy to test without
-// coupling callers to a particular SDK address codec implementation.
-var sdkAccAddressFromBech32 = func(value string) (sdk.AccAddress, error) {
-	return sdk.AccAddressFromBech32(value)
 }

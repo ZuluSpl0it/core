@@ -17,7 +17,6 @@ func RegisterInterfaces(registry codectypes.InterfaceRegistry) {
 		&MsgClaimRewards{},
 		&MsgFundRewards{},
 		&MsgUpdateParams{},
-		&MsgUpdateFundingAuthority{},
 	)
 	msgservice.RegisterMsgServiceDesc(registry, &_Msg_serviceDesc)
 }
@@ -29,5 +28,4 @@ func RegisterLegacyAminoCodec(cdc *codec.LegacyAmino) {
 	legacy.RegisterAminoMsg(cdc, &MsgClaimRewards{}, "ustcstaking/ClaimRewards")
 	legacy.RegisterAminoMsg(cdc, &MsgFundRewards{}, "ustcstaking/FundRewards")
 	legacy.RegisterAminoMsg(cdc, &MsgUpdateParams{}, "ustcstaking/UpdateParams")
-	legacy.RegisterAminoMsg(cdc, &MsgUpdateFundingAuthority{}, "ustcstaking/UpdateFundingAuthority")
 }

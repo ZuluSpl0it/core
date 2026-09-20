@@ -12,3 +12,7 @@ type BankKeeper interface {
 	GetBalance(ctx context.Context, addr sdk.AccAddress, denom string) sdk.Coin
 	GetAllBalances(ctx context.Context, addr sdk.AccAddress) sdk.Coins
 }
+
+type CommunityPoolKeeper interface {
+	DistributeFromCommunityPoolToModule(ctx context.Context, amount sdk.Coins, recipientModule string) error
+}

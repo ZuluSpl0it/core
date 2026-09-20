@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"cosmossdk.io/log"
+	"cosmossdk.io/math"
 	store "cosmossdk.io/store"
 	storemetrics "cosmossdk.io/store/metrics"
 	storetypes "cosmossdk.io/store/types"
@@ -26,6 +27,31 @@ type recordingBankKeeper struct {
 	lastAccountToModuleAmount sdk.Coins
 	rewardPoolBalance         sdk.Coin
 	principalPoolBalance      sdk.Coin
+}
+
+type recordingCommunityPoolKeeper struct {
+	calls           int
+	amount          sdk.Coins
+	recipientModule string
+	err             error
+	bank            *recordingBankKeeper
+}
+
+func (d *recordingCommunityPoolKeeper) DistributeFromCommunityPoolToModule(_ context.Context, amount sdk.Coins, recipientModule string) error {
+	d.calls++
+	d.amount = amount
+	d.recipientModule = recipientModule
+	if d.err != nil {
+		return d.err
+	}
+	if d.bank != nil {
+		balance := d.bank.rewardPoolBalance.Amount
+		if balance.IsNil() {
+			balance = math.ZeroInt()
+		}
+		d.bank.rewardPoolBalance = sdk.NewCoin(types.BondDenom, balance.Add(amount.AmountOf(types.BondDenom)))
+	}
+	return nil
 }
 
 func (b *recordingBankKeeper) SendCoinsFromAccountToModule(_ context.Context, _ sdk.AccAddress, module string, amount sdk.Coins) error {
@@ -66,5 +92,6 @@ func newKeeperTest(t *testing.T) (sdk.Context, Keeper) {
 	require.NoError(t, ms.LoadLatestVersion())
 	ctx := sdk.NewContext(ms, tmproto.Header{Time: time.Now().UTC()}, false, log.NewNopLogger())
 	cdc := codec.NewProtoCodec(codectypes.NewInterfaceRegistry())
-	return ctx, NewKeeper(cdc, key, &recordingBankKeeper{})
+	bank := &recordingBankKeeper{rewardPoolBalance: sdk.NewCoin(types.BondDenom, math.ZeroInt())}
+	return ctx, NewKeeper(cdc, key, bank, &recordingCommunityPoolKeeper{bank: bank})
 }

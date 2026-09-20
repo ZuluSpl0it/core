@@ -11,13 +11,14 @@ import (
 )
 
 type Keeper struct {
-	cdc        codec.BinaryCodec
-	storeKey   storetypes.StoreKey
-	bankKeeper types.BankKeeper
+	cdc                 codec.BinaryCodec
+	storeKey            storetypes.StoreKey
+	bankKeeper          types.BankKeeper
+	communityPoolKeeper types.CommunityPoolKeeper
 }
 
-func NewKeeper(cdc codec.BinaryCodec, storeKey storetypes.StoreKey, bankKeeper types.BankKeeper) Keeper {
-	return Keeper{cdc: cdc, storeKey: storeKey, bankKeeper: bankKeeper}
+func NewKeeper(cdc codec.BinaryCodec, storeKey storetypes.StoreKey, bankKeeper types.BankKeeper, communityPoolKeeper types.CommunityPoolKeeper) Keeper {
+	return Keeper{cdc: cdc, storeKey: storeKey, bankKeeper: bankKeeper, communityPoolKeeper: communityPoolKeeper}
 }
 
 func (k Keeper) Logger(ctx sdk.Context) log.Logger {

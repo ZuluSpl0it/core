@@ -49,7 +49,7 @@ func keeperAccruedRewards(position types.Position, state types.RewardState) math
 	return raw.TruncateInt()
 }
 
-func (k Keeper) FundRewards(ctx sdk.Context, sender sdk.AccAddress, amount sdk.Coin) error {
+func (k Keeper) FundRewards(ctx sdk.Context, amount sdk.Coin) error {
 	if amount.Denom != types.BondDenom || amount.Amount.IsNil() || !amount.Amount.IsPositive() {
 		return types.ErrInvalidDenom.Wrapf("expected positive %s funding amount", types.BondDenom)
 	}
@@ -58,7 +58,7 @@ func (k Keeper) FundRewards(ctx sdk.Context, sender sdk.AccAddress, amount sdk.C
 	if state.TotalShares.IsNil() || !state.TotalShares.IsPositive() {
 		return types.ErrNoActiveShares
 	}
-	if err := k.bankKeeper.SendCoinsFromAccountToModule(ctx, sender, types.RewardPoolName, sdk.NewCoins(amount)); err != nil {
+	if err := k.communityPoolKeeper.DistributeFromCommunityPoolToModule(ctx, sdk.NewCoins(amount), types.RewardPoolName); err != nil {
 		return err
 	}
 

@@ -79,9 +79,11 @@ message RewardState {
 message Params {
   option (gogoproto.equal) = true;
 
+  reserved 4;
+  reserved "funding_authority";
+
   string bond_denom = 1 [(gogoproto.moretags) = "yaml:\"bond_denom\""];
   repeated LockTier lock_tiers = 2 [(gogoproto.nullable) = false, (gogoproto.moretags) = "yaml:\"lock_tiers\""];
   string authority = 3 [(cosmos_proto.scalar) = "cosmos.AddressString", (gogoproto.moretags) = "yaml:\"authority\""];
-  string funding_authority = 4 [(cosmos_proto.scalar) = "cosmos.AddressString", (gogoproto.moretags) = "yaml:\"funding_authority\""];
   bool paused = 5 [(gogoproto.moretags) = "yaml:\"paused\""];
 }

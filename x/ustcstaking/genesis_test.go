@@ -23,6 +23,12 @@ import (
 
 type exportTestBankKeeper struct{}
 
+type exportTestCommunityPoolKeeper struct{}
+
+func (exportTestCommunityPoolKeeper) DistributeFromCommunityPoolToModule(context.Context, sdk.Coins, string) error {
+	return nil
+}
+
 func (exportTestBankKeeper) SendCoinsFromAccountToModule(context.Context, sdk.AccAddress, string, sdk.Coins) error {
 	return nil
 }
@@ -49,7 +55,7 @@ func TestWithdrawnPositionExportsWithoutPanic(t *testing.T) {
 	now := time.Now().UTC()
 	ctx := sdk.NewContext(stores, tmproto.Header{Time: now}, false, log.NewNopLogger())
 	cdc := codec.NewProtoCodec(codectypes.NewInterfaceRegistry())
-	k := keeper.NewKeeper(cdc, key, exportTestBankKeeper{})
+	k := keeper.NewKeeper(cdc, key, exportTestBankKeeper{}, exportTestCommunityPoolKeeper{})
 	owner := sdk.AccAddress(secp256k1.GenPrivKey().PubKey().Address()).String()
 	maturedAt := now.Add(-time.Second)
 	duration := time.Hour
