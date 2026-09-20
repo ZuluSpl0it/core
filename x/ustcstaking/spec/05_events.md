@@ -17,9 +17,10 @@ The production event contract is:
 | `ustcstaking_begin_unbonding` | `position_id`, `owner`, `unbonding_end_time`, `claimable_rewards` |
 | `ustcstaking_withdraw` | `position_id`, `owner`, `principal` |
 | `ustcstaking_claim_rewards` | `position_id`, `owner`, `amount` |
-| `ustcstaking_fund_rewards` | `sender`, `amount`, `reward_index_before`, `reward_index_after`, `reward_pool_balance` |
+| `ustcstaking_fund_rewards` | `authority`, `source`, `amount`, `reward_index_before`, `reward_index_after`, `reward_pool_balance_before`, `reward_pool_balance_after` |
 | `ustcstaking_update_params` | `authority`, `paused`, `lock_tier_count` |
-| `ustcstaking_update_funding_authority` | `authority`, `old_funding_authority`, `new_funding_authority` |
+
+Funding events use `source=community_pool` for reconciliation.
 
 Coin attributes use canonical SDK strings. Decimal indexes use canonical
 decimal strings. Timestamps use UTC RFC3339Nano. Event types and attribute

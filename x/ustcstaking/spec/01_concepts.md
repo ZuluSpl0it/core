@@ -36,7 +36,7 @@ The multiplier is also stored on the position as an immutable accounting snapsho
 
 ## Reward accounting
 
-The module maintains a global reward index and total active shares. Funding is explicit: a permitted funding authority sends USTC into the reward-pool module account.
+The module maintains a global reward index and total active shares. Funding is explicit: governance debits the distribution community pool and transfers the same USTC into the reward-pool module account through the application adapter.
 
 For a position with shares `S`, reward index `I`, and position reward-debt snapshot `D`:
 
@@ -62,4 +62,4 @@ This makes the reward liability externally funded and bounded by available USTC.
 
 ## Authority and pause controls
 
-The governance authority can replace the complete parameter set, including lock tiers and the pause flag. The funding authority can be changed independently by the governance authority. When paused, new staking and reward-funding operations are rejected; existing positions can still begin unbonding, withdraw after maturity, or claim rewards. Governance parameter updates remain available so the module can be resumed.
+The governance authority can replace the complete parameter set, including lock tiers and the pause flag, and is the only authority that can fund rewards from the community pool. When paused, new staking and reward-funding operations are rejected; existing positions can still begin unbonding, withdraw after maturity, or claim rewards. Governance parameter updates remain available so the module can be resumed.

@@ -1,6 +1,7 @@
 package types
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -8,6 +9,13 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
 )
+
+func TestDefaultGenesisDoesNotExposeFundingAuthority(t *testing.T) {
+	encoded, err := json.Marshal(DefaultGenesisState())
+	require.NoError(t, err)
+	require.NotContains(t, string(encoded), "funding_authority")
+	require.Contains(t, string(encoded), "authority")
+}
 
 func TestGenesisValidateRejectsNegativeRewardState(t *testing.T) {
 	genesis := DefaultGenesisState()

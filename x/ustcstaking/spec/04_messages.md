@@ -55,22 +55,18 @@ Settles rewards for the position and transfers them from the reward pool. Claims
 
 ```go
 type MsgFundRewards struct {
-    Sender string
+    Authority string // governance module address
     Amount sdk.Coin // positive uusd
 }
 ```
 
-Requires the configured funding authority. Transfers existing USTC into the reward pool and increases the reward index across active shares.
+Requires the configured governance authority. Debits the distribution community pool, transfers the existing funds into the reward pool, and increases the reward index across active shares. Users stake directly through `MsgStake`; no contract handles principal.
 
 ## Authority messages
 
 ### `MsgUpdateParams`
 
 Requires the configured governance authority and replaces the complete validated parameter set. This is the control used to configure tiers or pause/resume operations.
-
-### `MsgUpdateFundingAuthority`
-
-Requires the governance authority and replaces the address permitted to fund rewards.
 
 ## Queries
 

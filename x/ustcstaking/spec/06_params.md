@@ -9,7 +9,6 @@ order: 6
 | `bond_denom` | string | Must be `uusd`. |
 | `lock_tiers` | `[]LockTier` | Empty by default; governance must configure a tier before staking is enabled. |
 | `authority` | address | Governance module address by default; controls parameter updates. |
-| `funding_authority` | address | Governance module address by default; controls reward funding. |
 | `paused` | bool | `false` by default. |
 
 Each `LockTier` has:
@@ -20,4 +19,4 @@ Each `LockTier` has:
 | `duration` | duration | Positive. |
 | `multiplier` | decimal | Positive fixed-point value. |
 
-There is intentionally no inflation rate, mint allowance, reward emission schedule, or automatic funding parameter. Rewards enter the system only through `MsgFundRewards` and are limited by the reward-pool balance.
+There is intentionally no funding-authority parameter, inflation rate, mint allowance, reward emission schedule, or automatic funding parameter. Governance may fund rewards only from the distribution community pool through `MsgFundRewards`; the application adapter debits both FeePool accounting and the distribution module balance before crediting the reward pool. This transfer does not mint USTC.

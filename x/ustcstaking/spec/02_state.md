@@ -52,4 +52,4 @@ The reward index is unchanged when there are no active shares; funding without a
 0x30 -> Params
 ```
 
-`Params` contains the fixed bond denomination, lock tiers, governance authority, funding authority, and pause flag. Genesis validation requires non-negative accounting values, valid owners, valid coin denominations, unique position IDs, and equality between active position shares and `RewardState.total_shares`.
+`Params` contains the fixed bond denomination, lock tiers, governance authority, and pause flag. Protobuf field 4 and the removed `funding_authority` name are reserved. Genesis validation requires non-negative accounting values, valid owners, valid coin denominations, unique position IDs, and equality between active position shares and `RewardState.total_shares`.
