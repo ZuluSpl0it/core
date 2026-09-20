@@ -1,9 +1,8 @@
 # USTC Staking: Technical Advisor Briefing
 
 **Audience:** Technical advisor supporting C-suite discussion  
-**Purpose:** Explain the approved three-phase design, why its choices were
-made, and how to answer business, cost, and risk questions without making
-unsupported financial claims.
+**Purpose:** Explain the approved native USTC staking design and current
+community-pool funding phase without making unsupported financial claims.
 
 ## Bottom line
 
@@ -13,17 +12,17 @@ claim only USTC that has already been placed in a dedicated reward pool. The
 design does not mint tokens, promise an APR, change LUNC validator power, or
 put user principal inside a treasury/POL contract.
 
-The program is deliberately split into three release phases:
+The approved implementation sequence is deliberately staged:
 
 | Phase | What it delivers | Why it is separate |
 |---|---|---|
 | 1. Native USTC ledger | locks, withdrawals, claims, funded rewards | principal custody and accounting must be correct before any revenue integration |
-| 2. TreasuryManager/POL adapter | controlled revenue collection and reward funding | DEX/contract risk stays outside the user-position ledger |
+| 2. Native community-pool funding | governance moves existing community-pool USTC into the reward pool | no contract or revenue automation; user principal remains native |
 | 3. Validator program and launch | optional validator eligibility/performance incentives plus activation controls | validator policy is operationally sensitive but must not affect consensus |
 
-The program can launch with a governance-funded reward pool before Phase 2.
-That permits technical and operational validation without assuming POL revenue
-exists on day one.
+Phase 2 funding is a governance action. Users stake USTC directly through the
+native module; no contract receives principal or acts as a reward funder.
+TreasuryManager, POL, DEX routing, and automated revenue remain out of scope.
 
 ## How the system works
 
@@ -32,7 +31,8 @@ exists on day one.
 1. A user locks USTC in a position with a chosen lock tier.
 2. USTC principal is held in a dedicated on-chain escrow account.
 3. Rewards are held in a different on-chain reward account.
-4. An authorized funder deposits real USTC into the reward account.
+4. A governance-approved `MsgFundRewards` debits the distribution community
+   pool and transfers the same USTC into the reward account.
 5. The module allocates that deposit across eligible positions using a
    cumulative reward-per-share index.
 6. A user claims the accrued amount or starts unbonding; when its release date
@@ -42,28 +42,15 @@ The principal account and reward account are intentionally separate. A reward
 claim cannot exceed the funded reward balance, and a funding shortfall cannot
 consume principal.
 
-### Phase 2 — revenue adapter, reserve, buyback/burn, and staking funding
+### Phase 2 — native community-pool reward funding
 
-An approved revenue source transfers realized USTC to a dedicated
-`TreasuryManager` contract. The contract records a unique receipt, applies a
-governance-approved allocation policy, and can route a configured share to the
-native reward pool.
-
-The cross-layer sequence is atomic:
-
-```text
-approved revenue source → TreasuryManager receipt
-→ authorized USTC funding instruction → native reward pool → reward index
-```
-
-If the native funding instruction fails, the allocation fails; the contract
-must not count the receipt as paid. This provides a clear reconciliation trail
-from receipt to reward pool.
-
-The current policy baseline preserves the v1.1 paper's proposed 50/50 reserve
-and buyback/burn split, within a proposed 5–50% reserve bound and 30-day
-notice/timelock. Reward funding is zero by default until governance explicitly
-enables a share. Those are governance inputs, not financial projections.
+Governance executes `MsgFundRewards` to move an approved amount of existing
+USTC from distribution's community pool to the native reward pool. The app
+adapter subtracts FeePool accounting and transfers the same amount between
+module accounts before the reward index changes. This phase has no
+TreasuryManager, revenue receipt, POL, DEX, reserve-split, buyback, or automated
+funding behavior. Future revenue work would require a separate design and
+approval.
 
 ### Phase 3 — optional validator program
 
@@ -84,9 +71,9 @@ uptime measurement.
 | Choice | Reason | Business consequence |
 |---|---|---|
 | Native module for positions | deterministic accounting, queries, upgrades, and invariant testing in the chain | more initial Go/upgrade work, lower ambiguity around custody |
-| Separate TreasuryManager contract | POL/DEX routes can change or pause without endangering user positions | contract audit/operations cost, but contained blast radius |
+| Native governance funding | reward source, amount, and resulting balances are explicitly authorized and reconcilable | funding depends on governance decisions and available community-pool balance |
 | Pre-funded rewards only | every payable reward has a visible USTC source | no artificial yield or issuance; payouts depend on actual funding |
-| Separate governance and funding authority | a contract can fund rewards but cannot change program rules | revocable contract access; clearer operational roles |
+| Single governance authority | governance controls both module rules and community-pool funding | clear authorization; proposal review and reconciliation remain essential |
 | No direct coupling to standard staking | USTC utility must not change LUNC consensus | validator-policy benefits remain optional and non-consensus |
 | Explicit epoch reports for performance | avoids claiming that incomplete on-chain counters are a full performance oracle | requires transparent scorer governance and monitoring |
 | No mandatory end blocker | maturity and claims are checked on demand | lower per-block complexity; explicit finalization is needed for performance epochs |
@@ -102,20 +89,17 @@ It does **not** itself create revenue, restore a peg, or guarantee demand.
 
 ### Where would rewards come from?
 
-Only from USTC already controlled by the program: an initial governance-funded
-pool and, if approved later, realized revenue sent through TreasuryManager/POL.
-The investment case must identify each source, gross volume, routing cost,
-reserve needs, and the share available to rewards. No reward-rate or profit
-estimate should be presented before those inputs are independently modeled.
+For this phase, only from USTC already in the distribution community pool and
+explicitly approved by governance. No POL/DEX revenue is routed automatically.
+No reward-rate or profit estimate should be presented without an independent
+economic model and a separate future funding design.
 
 ### What are the main cost categories?
 
 1. Native module engineering, protobuf/API work, test infrastructure, and an
    upgrade rehearsal.
-2. TreasuryManager contract engineering, reproducible Wasm build pipeline, and
-   contract integration testing.
-3. Independent Go accounting/security audit and independent Rust/CosmWasm
-   audit.
+2. Native governance proposal, reconciliation, and operations tooling.
+3. Independent Go accounting/security review.
 4. Economic simulation, monitoring/reconciliation tooling, governance process,
    incident drills, and operational ownership.
 5. Treasury/POL capital, DEX routing costs, liquidity-management costs, and

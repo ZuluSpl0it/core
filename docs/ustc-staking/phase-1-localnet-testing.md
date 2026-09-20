@@ -1,8 +1,8 @@
-# USTC Staking Phase 1 Localnet Test Plan
+# USTC Staking Controlled Localnet Test Plan
 
-**Goal:** Prove that the Phase 1 `x/ustcstaking` module can be configured by governance, lock USTC, distribute only pre-funded USTC rewards by snapshotted shares, claim rewards, unbond, and return principal without changing LUNC validator staking.
+**Goal:** Exercise native USTC staking and governance-controlled community-pool reward funding on a disposable local network, without changing LUNC validator staking.
 
-**Architecture:** The test uses the repository's seven-validator Docker Compose localnet. Governance configures two short lock tiers and appoints node 0 as the local funding authority. Two validator accounts stake equal USTC principal with different multipliers, then node 0 transfers pre-existing USTC into the reward pool so the expected 1:2 payout can be verified exactly.
+**Architecture:** The test uses the repository's seven-validator Docker Compose localnet. Governance configures two short lock tiers. Two user accounts stake USTC directly with different multipliers; a governance proposal then transfers an approved community-pool amount into the reward pool so the expected 1:2 payout can be verified exactly.
 
 **Tech stack:** `terrad`, Docker Compose, Bash, `jq`, `curl`, and the local Cosmos SDK test keyring.
 
@@ -10,20 +10,19 @@
 
 ## Scope
 
-This runbook tests the Phase 1 code currently present on branch `ustc_staking`
-and its release-hardening branch:
+This runbook exercises the native staking and community-pool funding code:
 
 - governance-controlled parameters;
 - USTC-only (`uusd`) positions;
 - lock-tier duration and multiplier snapshots;
 - separate principal and reward module accounts;
-- governance-approved funding authority and pre-funded rewards;
+- governance-only community-pool funding and pre-funded rewards;
 - proportional reward claims;
 - unbonding and matured principal withdrawal;
 - expected failure paths;
 - isolation from normal validator staking.
 
-It does not test TreasuryManager/POL funding or the validator incentive program. Those are Phase 2 and Phase 3 designs and are not implemented in this branch.
+It does not test TreasuryManager/POL, DEX funding, or the validator incentive program. They are out of scope for this phase.
 
 Before public-testnet consideration, also run the release gates in
 `phase-1-release-readiness.md`. This campaign proves behavior on a fresh
@@ -36,7 +35,7 @@ migration or dependency security clearance.
 - Lock duration starts when `begin-unbonding` executes, not when `stake` executes.
 - Active positions earn according to `principal × tier multiplier`.
 - Funding fails when no active shares exist.
-- Rewards are never minted. `MsgFundRewards` transfers existing `uusd` from the configured funding authority into `ustcstaking_reward_pool`.
+- Rewards are never minted. Governance `MsgFundRewards` debits existing `uusd` from the distribution community pool into `ustcstaking_reward_pool`.
 - Active-position queries currently show stored `claimable_rewards`, not dynamically calculated pending rewards. Verify active rewards through `reward-state`, reward-pool balance, and actual claim balance deltas.
 - This procedure creates a fresh localnet. `make localnet-stop` deletes `build/node*` and `build/gentxs`.
 
@@ -400,14 +399,12 @@ NODE0_ADDR=$("$TERRAD" keys show node0 -a --keyring-backend test --home "$PWD/bu
 NODE1_ADDR=$("$TERRAD" keys show node1 -a --keyring-backend test --home "$PWD/build/node1/terrad")
 
 GOV_AUTH=$("$TERRAD" query ustcstaking params "${QUERY_FLAGS[@]}" | jq -r '.params.authority')
-FUNDING_AUTH=$("$TERRAD" query ustcstaking params "${QUERY_FLAGS[@]}" | jq -r '.params.funding_authority')
 PRINCIPAL_POOL=$(module_address ustcstaking)
 REWARD_POOL=$(module_address ustcstaking_reward_pool)
 
 printf 'node0=%s\nnode1=%s\ngov=%s\nfunding=%s\nprincipal_pool=%s\nreward_pool=%s\n' \
   "$NODE0_ADDR" "$NODE1_ADDR" "$GOV_AUTH" "$FUNDING_AUTH" "$PRINCIPAL_POOL" "$REWARD_POOL"
 
-test "$GOV_AUTH" = "$FUNDING_AUTH"
 test -n "$PRINCIPAL_POOL"
 test -n "$REWARD_POOL"
 test "$PRINCIPAL_POOL" != "$REWARD_POOL"
@@ -418,7 +415,7 @@ test "$PRINCIPAL_POOL" != "$REWARD_POOL"
 The module starts with no tiers. Create a governance proposal carrying `MsgUpdateParams`. The complete parameter set must be supplied because this message replaces all params.
 
 ```bash
-jq -n --arg authority "$GOV_AUTH" --arg funding_authority "$NODE0_ADDR" '
+jq -n --arg authority "$GOV_AUTH" '
 {
   messages: [
     {
@@ -439,7 +436,6 @@ jq -n --arg authority "$GOV_AUTH" --arg funding_authority "$NODE0_ADDR" '
           }
         ],
         authority: $authority,
-        funding_authority: $funding_authority,
         paused: false
       }
     }
@@ -475,11 +471,9 @@ Verify applied parameters:
 "$TERRAD" query ustcstaking params "${QUERY_FLAGS[@]}" | jq .
 ```
 
-Expected: `bond_denom=uusd`, two tiers, governance authority unchanged, funding authority set to node 0, and `paused=false`.
+Expected: `bond_denom=uusd`, two tiers, governance authority unchanged, and `paused=false`; no separate funding authority is configured.
 
 ```bash
-FUNDING_AUTH=$("$TERRAD" query ustcstaking params "${QUERY_FLAGS[@]}" | jq -r '.params.funding_authority')
-test "$FUNDING_AUTH" = "$NODE0_ADDR"
 ```
 
 ## 10. Check rejection paths before staking
@@ -554,89 +548,34 @@ test "$(uusd_balance "$PRINCIPAL_POOL")" = "200000000"
 test "$(uusd_balance "$REWARD_POOL")" = "0"
 ```
 
-## 12. Fund rewards from the governance-approved funding authority
+## 12. Fund rewards through governance
 
-The module intentionally omits authority-only funding from its ordinary user CLI. Create a protobuf JSON transaction containing `MsgFundRewards`, sign it with node 0—the funding authority governance approved in section 9—and broadcast it using `terrad`.
-
-Define a reusable raw funding-transaction builder:
+Funding is a governance action, not a transaction signed by a separate funding account. Seed the localnet community pool for this test from node 0, then submit a governance proposal containing `MsgFundRewards`; derive the authority from this running chain rather than copying a network-specific address:
 
 ```bash
-make_fund_tx() {
-  local sender="$1"
-  local key_name="$2"
-  local key_home="$3"
-  local amount="$4"
-  local output_prefix="$5"
+expect_ok "$TERRAD" tx distribution fund-community-pool 300000000uusd \
+  --from node0 --home "$PWD/build/node0/terrad"
 
-  jq -n --arg sender "$sender" --arg amount "$amount" '
-  {
-    body: {
-      messages: [
-        {
-          "@type": "/terra.ustcstaking.v1.MsgFundRewards",
-          sender: $sender,
-          amount: {denom: "uusd", amount: $amount}
-        }
-      ],
-      memo: "",
-      timeout_height: "0",
-      extension_options: [],
-      non_critical_extension_options: []
-    },
-    auth_info: {
-      signer_infos: [],
-      fee: {
-        amount: [{denom: "stake", amount: "1000000"}],
-        gas_limit: "300000",
-        payer: "",
-        granter: ""
-      }
-    },
-    signatures: []
-  }
-  ' > "${output_prefix}-unsigned.json"
+GOV_AUTH=$("$TERRAD" query ustcstaking params "${QUERY_FLAGS[@]}" | jq -r '.params.authority')
+jq -n --arg authority "$GOV_AUTH" '
+{
+  messages: [{
+    "@type": "/terra.ustcstaking.v1.MsgFundRewards",
+    authority: $authority,
+    amount: {denom: "uusd", amount: "300000000"}
+  }],
+  metadata: "",
+  deposit: "10000000stake",
+  title: "Fund USTC staking rewards",
+  summary: "Transfer approved community-pool funds to the USTC staking reward pool",
+  expedited: false
+}' > /tmp/ustc-fund-rewards-proposal.json
 
-  "$TERRAD" tx sign "${output_prefix}-unsigned.json" \
-    --from "$key_name" \
-    --home "$key_home" \
-    --keyring-backend "$KEYRING_BACKEND" \
-    --chain-id "$CHAIN_ID" \
-    --node "$RPC" \
-    --output json \
-    --output-document "${output_prefix}-signed.json" \
-    --overwrite
-}
+expect_ok "$TERRAD" tx gov submit-proposal /tmp/ustc-fund-rewards-proposal.json \
+  --from node0 --home "$PWD/build/node0/terrad"
 ```
 
-First prove that node 1 cannot fund rewards:
-
-```bash
-make_fund_tx \
-  "$NODE1_ADDR" \
-  node1 \
-  "$PWD/build/node1/terrad" \
-  1000 \
-  /tmp/ustc-unauthorized-fund
-
-expect_fail "$TERRAD" tx broadcast /tmp/ustc-unauthorized-fund-signed.json \
-  --home "$NODE0_HOME"
-
-test "$(uusd_balance "$REWARD_POOL")" = "0"
-```
-
-Fund `300000000uusd` from authorized node 0:
-
-```bash
-make_fund_tx \
-  "$NODE0_ADDR" \
-  node0 \
-  "$PWD/build/node0/terrad" \
-  300000000 \
-  /tmp/ustc-authorized-fund
-
-expect_ok "$TERRAD" tx broadcast /tmp/ustc-authorized-fund-signed.json \
-  --home "$NODE0_HOME"
-```
+Vote, wait for the proposal to pass, and verify the execution before continuing. A rejected, zero, wrong-denom, paused, no-active-shares, or underfunded proposal must not change the community pool, reward-pool balance, reward index, or supply. The source community-pool balance must be at least the approved amount at execution.
 
 Verify funded state:
 
@@ -649,7 +588,7 @@ Expected reward state:
 
 - total shares remain `300000000`;
 - reward index becomes `1.000000000000000000`;
-- node 0's existing USTC moved to the reward pool;
+  - the community pool decreased by `300000000uusd` and the reward pool increased by the same amount;
 - principal pool remains `200000000uusd`.
 
 ## 13. Claim rewards and verify exact 1:2 allocation
@@ -926,22 +865,9 @@ curl -fsS http://localhost:26657/status | jq '.result.sync_info'
 docker compose logs --tail=100 terradnode0
 ```
 
-## Future Phase 2 test inventory
+## Phase 2 community-pool funding test inventory
 
-Phase 2 will test TreasuryManager/POL funding integration. Planned coverage:
-
-1. Only allow-listed revenue sources can record `uusd` receipts.
-2. Wrong denoms, malformed receipt IDs, and duplicate receipt IDs are rejected.
-3. Receipt, reserve, reward, and buyback allocations sum exactly to received funds; integer dust follows the documented policy.
-4. Allocation-policy changes cannot execute before the governance timelock.
-5. Governance can rotate or revoke `funding_authority` without changing the module governance authority.
-6. TreasuryManager emits the fixed `/terra.ustcstaking.v1.MsgFundRewards` Stargate message with its own contract address as sender.
-7. Non-authorized contracts cannot fund the native reward pool.
-8. Failed native dispatch rolls back the contract allocation, receipt state, balances, and native reward index atomically.
-9. Contract pause stops new receipts and allocations but does not block Phase 1 claims or withdrawals.
-10. Source transfers, contract receipt/allocation events, native funding events, and reward-pool balances reconcile exactly.
-11. Contract migration preserves governance, policy, allow-list, receipts, balances, and funding authorization.
-12. No Phase 2 operation can access user principal, mint USTC, or alter validator staking.
+The native Phase 2 campaign covers successful governance funding from the distribution community pool, plus wrong denom, zero amount, no-active-shares, insufficient-pool, unauthorized, and paused failures. For every outcome, reconcile the distribution FeePool decimal accounting, distribution module balance, reward-pool balance, reward index, funding event, and total USTC supply. Confirm users continue to stake directly with `MsgStake`, with no contract, POL, DEX, mint, or validator-staking path.
 
 ## Future Phase 3 test inventory
 

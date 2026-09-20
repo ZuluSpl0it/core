@@ -6,12 +6,12 @@ promise of profit, price support, or investment return.
 
 ## The decision in one page
 
-We propose a three-step USTC program:
+The approved USTC program is being delivered in stages:
 
 1. Let people lock USTC for a period of time.
 2. Pay rewards only from USTC the program already holds.
-3. Later, if approved, use selected protocol revenue to refill that reward
-   pool and optionally offer a separate validator-incentive program.
+3. Governance can fund rewards from the distribution community pool; a
+   separate validator-incentive overlay remains later work.
 
 The important safeguard is simple: the system cannot create rewards from
 nothing. It can only distribute USTC that has first been funded.
@@ -21,27 +21,27 @@ nothing. It can only distribute USTC that has first been funded.
 | This is | This is not |
 |---|---|
 | a controlled USTC utility and reward program | a promise of yield or profit |
-| a way to direct approved revenue into transparent buckets | a guarantee that revenue will exist |
+| governance-controlled funding from the existing community pool | an automated revenue or yield guarantee |
 | a separate system for USTC locks | a change to LUNC validator power or voting |
 | a staged plan with stop/go gates | an irreversible all-at-once launch |
 | a design that keeps customer funds separate from operating funds | a replacement for audit, legal review, or treasury discipline |
 
 ## How money is protected
 
-When a participant locks USTC, it is kept separately from rewards. Rewards are
-kept separately from the treasury and from liquidity-management contracts.
+When a participant locks USTC, it is kept separately from rewards. Users stake
+directly in the native module; governance-approved rewards come from the
+distribution community pool, not from a separate funding account or contract.
 
 In plain terms:
 
 ```text
-customer locked USTC       → protected principal account
-approved reward funding    → separate reward account
-treasury / liquidity funds → separate contract and reserve accounts
+customer locked USTC        → protected native principal account
+governance-approved rewards → native reward account (community pool debit)
 ```
 
-A reward cannot be paid unless it is already in the reward account. A problem
-in the later liquidity or treasury contract can stop new funding, but it
-cannot take the USTC that participants locked in the core program.
+A reward cannot be paid unless it is already in the reward account. If
+governance does not approve further community-pool funding, no new rewards are
+added; locked principal remains separately held in the native module.
 
 ## The three delivery stages
 
@@ -50,19 +50,15 @@ cannot take the USTC that participants locked in the core program.
 Build the on-chain recordkeeping for locks, release dates, and claims. Start
 with a leadership/governance-funded reward pool if a pilot is approved.
 
-**Why first:** it proves the customer-funds and rewards accounting before the
-business depends on trading or liquidity revenue.
+**Why first:** it proves the customer-funds and rewards accounting before
+governance approves community-pool funding.
 
-### Stage 2: Add a controlled funding engine
+### Stage 2: Govern community-pool reward funding
 
-Build a small treasury manager that can receive approved USTC revenue, record
-where it came from, and apply approved allocation rules. It can send a defined
-share to the reward account; the rest can remain in reserve or be sent to an
-approved buyback/burn process.
-
-**Why separate:** it limits the impact of a contract, trading, or liquidity
-problem. The core customer-locking system keeps working even if this stage is
-paused.
+Governance executes a native message to move an approved amount of existing
+USTC from the distribution community pool into the reward account. The chain
+updates community-pool accounting and the reward balance together. No funding
+contract, DEX, POL, buyback, or automated revenue route is part of this phase.
 
 ### Stage 3: Optional validator program and full launch controls
 
@@ -79,11 +75,11 @@ or penalties. It is an optional incentive program only.
 
 - The plan uses the chain's established way to add native modules, accounts,
   public queries, upgrades, and tests.
-- It keeps the complex treasury/liquidity work in a separate contract rather
-  than mixing it into the customer-funds system.
-- It defines specific tests for fund movements, permissions, claims, upgrades,
-  contract failure, duplicate payments, and emergency pauses.
-- It requires independent review of both the chain code and the contract code
+- It keeps user principal in a native module and routes rewards only through
+  governance-controlled community-pool accounting.
+- It defines tests for fund movements, permissions, claims, upgrades,
+  insufficient funding, and emergency pauses.
+- It requires independent review of chain accounting and upgrade behavior
   before activation.
 - It can be piloted with controlled funding before relying on external revenue.
 
@@ -92,18 +88,17 @@ test, audit, and launch path rather than an open-ended concept.
 
 ## Business case: what must be true
 
-The program can be financially sustainable only if actual net USTC inflows are
-enough to cover the rewards leadership chooses to fund, required reserves,
-trading/liquidity costs, audits, engineering maintenance, monitoring, and any
-buyback/burn allocation.
+The current phase does not create revenue. It can distribute only the amount
+that governance approves from the existing community pool. Any future POL,
+trading, reserve, or buyback allocation requires separate design and approval.
 
 Before approving a launch budget, request a financial model that shows:
 
-- each expected funding source and its evidence;
-- gross inflow, transaction/routing costs, liquidity costs, and reserve needs;
-- the amount available for rewards under low/base/high scenarios;
+- the community-pool balance and amount proposed for rewards;
+- transaction costs and the remaining community-pool balance;
+- the maximum amount governance is willing to allocate;
 - one-time build/audit costs and ongoing operating costs;
-- maximum exposure if revenue drops, a contract is paused, or participation is
+- maximum exposure if funding stops or participation is
   materially higher or lower than expected;
 - the rule for reducing or stopping future rewards if funding is insufficient.
 
@@ -113,11 +108,10 @@ those values have not yet been independently established.
 ## Costs leadership should expect to authorize
 
 - Core chain engineering and upgrade preparation.
-- Treasury/liquidity contract engineering and reproducible build process.
-- Independent security and accounting audits for both codebases.
-- Economic modeling, testing, monitoring, reconciliation, and incident drills.
-- Treasury or liquidity capital, external trading/liquidity expenses, and
-  required legal, tax, or compliance work.
+- Native chain accounting, governance proposal, reconciliation, and operations
+  engineering.
+- Independent security and accounting review of the native module.
+- Testing, monitoring, reconciliation, and incident drills.
 - Ongoing ownership of governance controls, authority changes, reporting, and
   software maintenance.
 
@@ -125,9 +119,9 @@ those values have not yet been independently established.
 
 | Risk | What it means | Planned control |
 |---|---|---|
-| Revenue risk | actual inflows may be too low or unreliable | rewards are limited to funded USTC; use pilot caps and reserve rules |
-| Contract/liquidity risk | a treasury or liquidity contract may fail or need to pause | keep it separate from locked customer funds; audits, allow-lists, pause controls |
-| Governance risk | a poor allocation or authority decision can damage trust | published limits, timelock, separate authorities, and event records |
+| Funding risk | governance may approve little or no funding | rewards are limited to funded USTC; disclose the available community-pool balance |
+| Custody/accounting risk | a funding or accounting defect could misstate available rewards | native module separation, bank restrictions, tested reconciliation, independent review |
+| Governance risk | a poor funding decision can damage trust | publish amount, purpose, and before/after balances; require proposal review |
 | Security risk | code or integration defects can affect funds or availability | independent audits, test gates, upgrade rehearsal, monitoring |
 | Adoption risk | users or validators may not participate | pilot before scale; do not assume returns or demand |
 | Reputation risk | users may misunderstand rewards as guaranteed | clear disclosures: pre-funded only, no promised APR, transparent reporting |
@@ -141,8 +135,8 @@ those values have not yet been independently established.
    and professional review.
 3. Approve the risk limits for reserve, rewards, buyback/burn, and emergency
    pause authority.
-4. Require a financial model and define the minimum evidence needed before
-   Phase 2 revenue funding is activated.
+4. Set governance and reporting limits for community-pool allocations; any
+   future revenue funding needs a separate proposal and design.
 5. Decide whether Phase 3 validator incentives are enabled at launch or held
    back until the core and funding stages prove stable.
 6. Require all release gates: audits, testing, governance notice period,
@@ -150,14 +144,14 @@ those values have not yet been independently established.
 
 ## Recommended leadership position
 
-Approve planning and a tightly controlled Phase 1 pilot only after a budget,
-ownership, and risk limit are agreed. Treat Phase 2 revenue funding and Phase
-3 validator incentives as separate activation decisions—not automatic
-consequences of building the core.
+Approve planning and controlled testing only after a budget, ownership, and
+risk limit are agreed. Treat community-pool funding and Phase 3 validator
+incentives as separate activation decisions—not automatic consequences of
+building the core.
 
 That approach preserves optionality: leadership can stop after a successful
-pilot, delay the more complex revenue layer, or enable it only when the
-business case and controls are ready.
+pilot or consider a future revenue-funding design only after its business case
+and controls are separately reviewed.
 
 ## Questions leadership should ask the technical advisor
 
@@ -166,10 +160,10 @@ business case and controls are ready.
 - Can the system pay more than it has funded? **No.** Claims are capped by the
   reward-pool balance.
 - Does this alter LUNC validator control or create new token issuance? **No.**
-- What happens if the treasury/liquidity contract fails? **New funding can be
-  paused; the core lock and claim ledger remains separate.**
+- Where do Phase 2 rewards come from? **Only a governance-approved debit from
+  distribution's community pool; no contract or automated revenue route.**
 - What proof will we receive before launch? **Test results, audit reports,
-  contract checksum, authority configuration, reconciliation dashboards, and
+  governance proposal, authority configuration, reconciliation evidence, and
   pause/rollback drill evidence.**
 
 ## Reference material

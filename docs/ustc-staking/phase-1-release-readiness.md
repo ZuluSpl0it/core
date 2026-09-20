@@ -13,6 +13,10 @@ the final repeated seven-validator campaign on the release revision, and
 dependency/security disposition. Do not activate `ustc_staking` on a live
 chain until every blocking gate below has recorded evidence.
 
+For the community-pool funding revision, use the separate
+`phase-2-community-pool-release-readiness.md` checklist as well. Phase 1 local
+validator testing does not certify the new funding adapter or its upgrade.
+
 ## Blocking gates
 
 1. **Build and tests**
