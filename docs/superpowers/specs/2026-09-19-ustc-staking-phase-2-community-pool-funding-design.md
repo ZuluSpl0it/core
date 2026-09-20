@@ -19,10 +19,11 @@ behalf of a staker.
 
 Rewards are funded only by governance-approved transfers of existing `uusd`
 from the distribution community pool. Governance executes native
-`MsgFundRewards`; `x/ustcstaking` authorizes the governance module account,
-asks the distribution keeper to debit the community pool and transfer the
-approved amount to `ustcstaking_reward_pool`, then updates the reward index in
-the same cached SDK message execution.
+`MsgFundRewards`; `x/ustcstaking` authorizes the governance module account and
+calls a narrow application adapter that debits distribution FeePool accounting
+and transfers the approved amount from the distribution module account to
+`ustcstaking_reward_pool`. The module then updates the reward index in the same
+cached SDK message execution.
 
 ```text
 user wallet
@@ -81,14 +82,14 @@ available.
 
 ## Atomic keeper operation
 
-The USTC staking keeper receives a narrow distribution interface:
+The USTC staking keeper receives a narrow community-pool interface:
 
 ```go
-type DistributionKeeper interface {
-    DistributeFromFeePool(
+type CommunityPoolKeeper interface {
+    DistributeFromCommunityPoolToModule(
         ctx context.Context,
         amount sdk.Coins,
-        recipient sdk.AccAddress,
+        recipientModule string,
     ) error
 }
 ```
@@ -100,7 +101,8 @@ Funding executes in this order:
 3. Require exactly one positive `uusd` coin.
 4. Require positive active `total_shares`.
 5. Snapshot the reward index and reward-pool balance for the event.
-6. Call `DistributeFromFeePool` with the reward module-account address.
+6. Call `DistributeFromCommunityPoolToModule` with the fixed reward module
+   name.
 7. Increase the cumulative reward index by `amount / total_shares`.
 8. Persist reward state and emit the funding event.
 
@@ -108,10 +110,18 @@ Cosmos SDK message execution uses a cached multistore. An error from community
 pool validation, bank transfer, or message handling discards all state changes.
 The reward index is not changed before a successful community-pool transfer.
 
-`DistributeFromFeePool` is used instead of directly moving distribution module
-coins because the community pool is accounting state inside the distribution
-module, not a standalone bank account. The SDK method updates both its decimal
-community-pool ledger and the distribution module's bank balance.
+The adapter reads `DistrKeeper.FeePool`, subtracts the integer coin amount from
+its decimal community-pool balance with `SafeSub`, transfers bank coins with
+`SendCoinsFromModuleToModule(distribution, ustcstaking_reward_pool, amount)`,
+and persists the reduced FeePool. It returns an error on insufficient pool
+accounting, bank failure, or state-write failure.
+
+The SDK's public `DistributeFromFeePool` method is deliberately not used. It
+calls `SendCoinsFromModuleToAccount`, which rejects blocked module-account
+recipients. The USTC reward pool must remain blocked from direct account sends;
+allow-listing it would permit ungoverned deposits that bypass reward-index
+accounting. The adapter therefore preserves the blocklist and uses the bank
+keeper's module-to-module path.
 
 ## Funding event
 
@@ -131,9 +141,9 @@ reward-pool delta must reconcile exactly. No event is emitted on failure.
 ## Failure behavior
 
 - Wrong authority: reject before touching distribution or USTC staking state.
-- Non-USTC, zero, negative, or multi-coin input: reject.
+- Non-USTC, zero, or negative input: reject.
 - No active shares: reject; community-pool funds remain untouched.
-- Insufficient community pool: propagate the distribution error; reward pool
+- Insufficient community pool: return the community-pool error; reward pool
   and reward index remain unchanged.
 - Paused module: reject new stakes and reward funding while preserving claims,
   matured withdrawals, and existing custody guarantees.
@@ -142,9 +152,10 @@ reward-pool delta must reconcile exactly. No event is emitted on failure.
 ## Keeper construction
 
 `x/ustcstaking` currently constructs before the distribution keeper and only
-depends on BankKeeper. Phase 2 moves USTC staking keeper construction to after
-the distribution keeper and injects the narrow interface above. No dependency
-on the SDK staking keeper is added.
+depends on BankKeeper. Phase 2 constructs a small adapter after BankKeeper and
+DistrKeeper are available, moves USTC staking keeper construction after it,
+and injects the narrow interface above. No dependency on the SDK staking
+keeper is added.
 
 The two USTC module accounts remain unchanged:
 
@@ -152,6 +163,8 @@ The two USTC module accounts remain unchanged:
 - `ustcstaking_reward_pool` holds only funded rewards.
 
 Neither module account receives mint or burner permissions.
+`ustcstaking_reward_pool` is not added to `allowedReceivingModAcc`; direct
+account sends remain blocked.
 
 ## Compatibility and rollout
 
@@ -173,7 +186,8 @@ backward-compatibility analysis, and upgrade rehearsal become mandatory.
 - No contract, Stargate dispatch, or arbitrary funding account participates.
 - Only governance can authorize a community-pool debit.
 - Funding cannot mint USTC or draw from user principal.
-- Community-pool accounting and bank movement use the SDK distribution keeper.
+- Community-pool accounting uses `DistrKeeper.FeePool`; bank movement uses the
+  SDK's module-to-module transfer path.
 - Claims remain limited by the native reward-pool balance.
 - USTC staking never changes LUNC validator state, distribution rewards,
   slashing, jailing, commission, or voting power.
