@@ -24,6 +24,20 @@ func TestGenesisValidateRejectsNegativeRewardState(t *testing.T) {
 	require.ErrorIs(t, ValidateGenesis(genesis), ErrInvalidRewardState)
 }
 
+func FuzzGenesisAccountingValidationDoesNotPanic(f *testing.F) {
+	f.Add(int64(10), int64(2), int64(1))
+	f.Add(int64(0), int64(0), int64(0))
+	f.Add(int64(-1), int64(1), int64(0))
+	f.Fuzz(func(t *testing.T, shares, index, debt int64) {
+		genesis := validGenesisPositionState()
+		genesis.Positions[0].Shares = math.NewInt(shares)
+		genesis.RewardState.TotalShares = math.NewInt(shares)
+		genesis.RewardState.RewardIndex = math.LegacyNewDecFromInt(math.NewInt(index))
+		genesis.Positions[0].RewardDebt = math.LegacyNewDecFromInt(math.NewInt(debt))
+		_ = ValidateGenesis(genesis)
+	})
+}
+
 func TestGenesisValidateRejectsActiveSharesMismatch(t *testing.T) {
 	genesis := DefaultGenesisState()
 	genesis.RewardState.TotalShares = math.NewInt(10)
@@ -32,6 +46,7 @@ func TestGenesisValidateRejectsActiveSharesMismatch(t *testing.T) {
 			Id:               1,
 			Owner:            genesis.Params.Authority,
 			Principal:        uusdCoin(10),
+			LockTierId:       1,
 			Shares:           math.NewInt(9),
 			ShareMultiplier:  math.LegacyOneDec(),
 			RewardDebt:       math.LegacyZeroDec(),
@@ -52,8 +67,10 @@ func TestGenesisValidateAcceptsWithdrawnPositionWithZeroPrincipal(t *testing.T) 
 			Id:               1,
 			Owner:            genesis.Params.Authority,
 			Principal:        uusdCoin(0),
+			LockTierId:       1,
 			Shares:           math.ZeroInt(),
 			ShareMultiplier:  math.LegacyOneDec(),
+			RewardDebt:       math.LegacyZeroDec(),
 			LockDuration:     &duration,
 			Status:           PositionStatus_POSITION_STATUS_WITHDRAWN,
 			ClaimableRewards: uusdCoin(0),
@@ -89,6 +106,7 @@ func TestGenesisValidateRejectsInvalidPrincipalForPositionStatus(t *testing.T) {
 					Id:               1,
 					Owner:            genesis.Params.Authority,
 					Principal:        tt.principal,
+					LockTierId:       1,
 					Shares:           tt.shares,
 					ShareMultiplier:  math.LegacyOneDec(),
 					LockDuration:     durationPtr(time.Hour),
@@ -132,6 +150,49 @@ func TestGenesisValidateRejectsWrongClaimableDenom(t *testing.T) {
 	require.ErrorIs(t, ValidateGenesis(genesis), ErrInvalidPosition)
 }
 
+func TestGenesisValidateRejectsNilArithmeticState(t *testing.T) {
+	genesis := validGenesisPositionState()
+	genesis.RewardState.RewardIndex = math.LegacyDec{}
+	require.ErrorIs(t, ValidateGenesis(genesis), ErrInvalidRewardState)
+
+	genesis = validGenesisPositionState()
+	genesis.Positions[0].RewardDebt = math.LegacyDec{}
+	require.ErrorIs(t, ValidateGenesis(genesis), ErrInvalidPosition)
+
+	genesis = validGenesisPositionState()
+	genesis.Positions[0].Shares = math.Int{}
+	require.ErrorIs(t, ValidateGenesis(genesis), ErrInvalidPosition)
+}
+
+func TestGenesisValidateRejectsZeroTierIDAndZeroMaturity(t *testing.T) {
+	genesis := validGenesisPositionState()
+	genesis.Positions[0].LockTierId = 0
+	require.ErrorIs(t, ValidateGenesis(genesis), ErrInvalidLockSnapshot)
+
+	genesis = validGenesisPositionState()
+	genesis.Positions[0].Status = PositionStatus_POSITION_STATUS_UNBONDING
+	genesis.Positions[0].Shares = math.ZeroInt()
+	genesis.Positions[0].UnbondingEndTime = &time.Time{}
+	genesis.RewardState.TotalShares = math.ZeroInt()
+	require.ErrorIs(t, ValidateGenesis(genesis), ErrInvalidPosition)
+}
+
+func TestGenesisValidateRejectsActiveDebtAboveAccruedRewards(t *testing.T) {
+	genesis := validGenesisPositionState()
+	genesis.Positions[0].RewardDebt = math.LegacyOneDec()
+	require.ErrorIs(t, ValidateGenesis(genesis), ErrInvalidPosition)
+}
+
+func TestGenesisValidateRequiresZeroDebtForWithdrawnPosition(t *testing.T) {
+	genesis := validGenesisPositionState()
+	genesis.Positions[0].Status = PositionStatus_POSITION_STATUS_WITHDRAWN
+	genesis.Positions[0].Principal = uusdCoin(0)
+	genesis.Positions[0].Shares = math.ZeroInt()
+	genesis.Positions[0].RewardDebt = math.LegacyOneDec()
+	genesis.RewardState.TotalShares = math.ZeroInt()
+	require.ErrorIs(t, ValidateGenesis(genesis), ErrInvalidPosition)
+}
+
 func TestGenesisValidateRejectsMaxPositionID(t *testing.T) {
 	genesis := validGenesisPositionState()
 	genesis.Positions[0].Id = ^uint64(0)
@@ -147,6 +208,7 @@ func validGenesisPositionState() *GenesisState {
 		Id:               1,
 		Owner:            genesis.Params.Authority,
 		Principal:        uusdCoin(10),
+		LockTierId:       1,
 		Shares:           math.NewInt(10),
 		ShareMultiplier:  math.LegacyOneDec(),
 		RewardDebt:       math.LegacyZeroDec(),

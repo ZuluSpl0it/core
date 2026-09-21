@@ -186,6 +186,9 @@ func (k msgServer) ClaimRewards(goCtx context.Context, msg *types.MsgClaimReward
 	if amount.IsNil() {
 		amount = math.ZeroInt()
 	}
+	if position.Status == types.PositionStatus_POSITION_STATUS_ACTIVE && !position.ClaimableRewards.Amount.IsNil() {
+		amount = amount.Add(position.ClaimableRewards.Amount)
+	}
 	if amount.IsZero() {
 		ctx.EventManager().EmitEvent(sdk.NewEvent(types.EventTypeClaimRewards,
 			sdk.NewAttribute("position_id", strconv.FormatUint(position.Id, 10)),
@@ -208,9 +211,8 @@ func (k msgServer) ClaimRewards(goCtx context.Context, msg *types.MsgClaimReward
 			index = math.LegacyZeroDec()
 		}
 		position.RewardDebt = position.Shares.ToLegacyDec().Mul(index)
-	} else {
-		position.ClaimableRewards = sdk.NewCoin(types.BondDenom, math.ZeroInt())
 	}
+	position.ClaimableRewards = sdk.NewCoin(types.BondDenom, math.ZeroInt())
 	if err := k.SetPosition(ctx, position); err != nil {
 		return nil, err
 	}

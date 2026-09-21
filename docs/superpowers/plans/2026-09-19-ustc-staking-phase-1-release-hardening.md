@@ -179,7 +179,7 @@ git commit -m "fix: harden USTC imported state validation"
 
 Expected: malformed fixtures fail before store or bank mutation.
 
-## Task 3: Register production accounting invariants
+## Task 3: Expose production accounting checks
 
 **Files:**
 
@@ -187,6 +187,9 @@ Expected: malformed fixtures fail before store or bank mutation.
 - Create: `x/ustcstaking/keeper/invariants.go`
 - Create: `x/ustcstaking/keeper/invariants_test.go`
 - Modify: `x/ustcstaking/module.go`
+- Modify: `proto/terra/ustcstaking/v1/query.proto`
+- Modify: `x/ustcstaking/keeper/query_server.go`
+- Modify: `x/ustcstaking/client/cli/query.go`
 - Modify: `x/ustcstaking/keeper/test_utils_test.go`
 
 - [ ] **Step 1: Extend the narrow BankKeeper interface.**
@@ -211,17 +214,17 @@ Assert route names exactly: `principal-custody`, `active-shares`, and `reward-so
 
 Add pure keeper methods returning the SDK invariant form `(string, bool)). Use `authtypes.NewModuleAddress` for both pools. Diagnostics include expected and actual values plus the first offending position ID.
 
-- [ ] **Step 4: Register routes from the app module.**
+- [ ] **Step 4: Expose the operator check.**
 
-Change `AppModule.RegisterInvariants` to call:
+The app uses Cosmos SDK v0.53, where `sdk.InvariantRegistry` is deprecated,
+`module.Manager.RegisterInvariants` is a no-op, and `x/crisis` is absent.
+Do not restore crisis or introduce a per-block scan. Keep `RegisterInvariants`
+for SDK-compatible tooling and expose the same accounting check through a
+read-only `Query/ValidateState` and `terrad query ustcstaking validate-state`.
+Integration tests execute the query with real application keepers against
+both valid and deliberately corrupted state.
 
-```go
-func (am AppModule) RegisterInvariants(ir sdk.InvariantRegistry) {
-	keeper.RegisterInvariants(ir, am.keeper)
-}
-```
-
-Use the repository's crisis invariant registry contract. Do not add global supply conservation.
+Do not add global supply conservation.
 
 - [ ] **Step 5: Run and commit.**
 
@@ -423,7 +426,7 @@ Expected: PASS using real AccountKeeper/BankKeeper, not the recording mock.
 
 **Files:**
 
-- Modify: `docs/ustc-staking/phase-1-localnet-testing.md`
+- Modify: `docs/ustc-staking/phase-2-community-pool-localnet-testing.md`
 - Create: `docs/ustc-staking/phase-1-release-readiness.md`
 - Create: `docs/ustc-staking/phase-1-dependency-triage.md`
 
@@ -520,4 +523,3 @@ git commit -m "test: complete USTC staking phase 1 hardening"
 ## Completion criteria
 
 The plan is complete only when the approved design's ten acceptance criteria are evidenced by code, automated output, upgrade rehearsal artifacts, and the repeated validator report. Passing unit tests alone is insufficient for public testnet or production readiness.
-

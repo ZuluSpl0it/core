@@ -15,17 +15,21 @@ Before USTC-staking implementation work, read these in order:
 1. `docs/ustc-staking/architecture-foundation.md`
 2. `docs/superpowers/specs/2026-07-29-ustc-staking-phase-1-design.md`
 3. `docs/superpowers/plans/2026-07-29-ustc-staking-phase-1.md`
-4. `docs/superpowers/specs/2026-07-29-ustc-staking-phase-2-funding-design.md`
-5. `docs/superpowers/plans/2026-07-29-ustc-staking-phase-2-funding.md`
-6. `docs/superpowers/specs/2026-07-29-ustc-staking-phase-3-validator-program-design.md`
-7. `docs/superpowers/plans/2026-07-29-ustc-staking-phase-3-validator-program.md`
+4. `docs/superpowers/specs/2026-09-19-ustc-staking-phase-1-release-hardening-design.md`
+5. `docs/superpowers/plans/2026-09-19-ustc-staking-phase-1-release-hardening.md`
+6. `docs/superpowers/specs/2026-09-19-ustc-staking-phase-2-community-pool-funding-design.md`
+7. `docs/superpowers/plans/2026-09-19-ustc-staking-phase-2-community-pool-funding.md`
+8. `docs/superpowers/specs/2026-07-29-ustc-staking-phase-3-validator-program-design.md`
+9. `docs/superpowers/plans/2026-07-29-ustc-staking-phase-3-validator-program.md`
 
 Keep the native `x/ustcstaking` ledger separate from `custom/staking` and LUNC
-validator consensus. Phase 2 TreasuryManager/POL work may fund rewards only
-through the native module's constrained funding-authority interface.
-Phase 3 validator-program work is an incentive overlay only: it must not
-change validator power, LUNC self-bond, commission, slashing, jailing, or the
-distribution module.
+validator consensus. Phase 2 reward funding is governance-authorized and moves
+existing USTC from the distribution community pool through the constrained
+native funding API; do not add TreasuryManager, POL, Wasm, minting, or direct
+reward-pool deposits. Phase 3 validator-program work is an optional incentive
+overlay only: it must not change validator power, LUNC self-bond, commission,
+slashing, jailing, or distribution rewards. Its performance pool is distinct
+from Phase 1 staker rewards.
 
 For stakeholder communication, use the audience-specific briefings rather than
 condensing technical plans ad hoc:

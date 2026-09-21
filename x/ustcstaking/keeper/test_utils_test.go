@@ -83,7 +83,7 @@ func (b *recordingBankKeeper) GetAllBalances(_ context.Context, addr sdk.AccAddr
 	return sdk.NewCoins(b.rewardPoolBalance)
 }
 
-func newKeeperTest(t *testing.T) (sdk.Context, Keeper) {
+func newKeeperTest(t testing.TB) (sdk.Context, Keeper) {
 	t.Helper()
 	key := storetypes.NewKVStoreKey(types.StoreKey)
 	db := dbm.NewMemDB()

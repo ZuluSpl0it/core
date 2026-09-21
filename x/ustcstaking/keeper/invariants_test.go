@@ -46,10 +46,20 @@ func TestActiveSharesInvariantMatchesRewardState(t *testing.T) {
 	require.False(t, broken, message)
 }
 
+func TestActiveSharesInvariantRejectsUninitializedRewardState(t *testing.T) {
+	ctx, keeper := newKeeperTest(t)
+	keeper.SetRewardState(ctx, types.RewardState{RewardIndex: math.LegacyOneDec().Neg(), TotalShares: math.ZeroInt()})
+
+	message, broken := activeSharesInvariant(keeper)(ctx)
+
+	require.True(t, broken)
+	require.Contains(t, message, "uninitialized")
+}
+
 func TestRewardSolvencyInvariantIncludesActiveAndClaimable(t *testing.T) {
 	ctx, keeper := newKeeperTest(t)
 	owner := testAddress()
-	require.NoError(t, keeper.SetPosition(ctx, types.Position{Id: 1, Owner: owner, Shares: math.NewInt(10), RewardDebt: math.LegacyZeroDec(), Status: types.PositionStatus_POSITION_STATUS_ACTIVE}))
+	require.NoError(t, keeper.SetPosition(ctx, types.Position{Id: 1, Owner: owner, Shares: math.NewInt(10), RewardDebt: math.LegacyZeroDec(), ClaimableRewards: sdk.NewCoin(types.BondDenom, math.ZeroInt()), Status: types.PositionStatus_POSITION_STATUS_ACTIVE}))
 	keeper.SetRewardState(ctx, types.RewardState{RewardIndex: math.LegacyOneDec(), TotalShares: math.NewInt(10)})
 	keeper.bankKeeper.(*recordingBankKeeper).rewardPoolBalance = sdk.NewCoin(types.BondDenom, math.NewInt(13))
 
@@ -61,7 +71,7 @@ func TestRewardSolvencyInvariantIncludesActiveAndClaimable(t *testing.T) {
 func TestRewardSolvencyInvariantReportsShortfall(t *testing.T) {
 	ctx, keeper := newKeeperTest(t)
 	owner := testAddress()
-	require.NoError(t, keeper.SetPosition(ctx, types.Position{Id: 1, Owner: owner, Shares: math.NewInt(10), RewardDebt: math.LegacyZeroDec(), Status: types.PositionStatus_POSITION_STATUS_ACTIVE}))
+	require.NoError(t, keeper.SetPosition(ctx, types.Position{Id: 1, Owner: owner, Shares: math.NewInt(10), RewardDebt: math.LegacyZeroDec(), ClaimableRewards: sdk.NewCoin(types.BondDenom, math.ZeroInt()), Status: types.PositionStatus_POSITION_STATUS_ACTIVE}))
 	keeper.SetRewardState(ctx, types.RewardState{RewardIndex: math.LegacyOneDec(), TotalShares: math.NewInt(10)})
 	keeper.bankKeeper.(*recordingBankKeeper).rewardPoolBalance = sdk.NewCoin(types.BondDenom, math.NewInt(9))
 
@@ -69,6 +79,40 @@ func TestRewardSolvencyInvariantReportsShortfall(t *testing.T) {
 
 	require.True(t, broken)
 	require.True(t, strings.Contains(message, "expected=10"))
+}
+
+func TestRewardSolvencyInvariantIncludesActiveClaimableRewards(t *testing.T) {
+	ctx, keeper := newKeeperTest(t)
+	owner := testAddress()
+	position := types.Position{
+		Id: 1, Owner: owner, Shares: math.NewInt(10), RewardDebt: math.LegacyZeroDec(),
+		ClaimableRewards: sdk.NewCoin(types.BondDenom, math.NewInt(5)),
+		Status:           types.PositionStatus_POSITION_STATUS_ACTIVE,
+	}
+	require.NoError(t, keeper.SetPosition(ctx, position))
+	keeper.SetRewardState(ctx, types.RewardState{RewardIndex: math.LegacyOneDec(), TotalShares: math.NewInt(10)})
+	keeper.bankKeeper.(*recordingBankKeeper).rewardPoolBalance = sdk.NewCoin(types.BondDenom, math.NewInt(14))
+
+	message, broken := rewardSolvencyInvariant(keeper)(ctx)
+
+	require.True(t, broken)
+	require.Contains(t, message, "expected=15")
+}
+
+func TestRewardSolvencyInvariantRejectsActiveRewardDebtAboveEntitlement(t *testing.T) {
+	ctx, keeper := newKeeperTest(t)
+	position := types.Position{
+		Id: 1, Owner: testAddress(), Shares: math.OneInt(), RewardDebt: math.LegacyOneDec(),
+		Status: types.PositionStatus_POSITION_STATUS_ACTIVE,
+	}
+	require.NoError(t, keeper.SetPosition(ctx, position))
+	keeper.SetRewardState(ctx, types.RewardState{RewardIndex: math.LegacyZeroDec(), TotalShares: math.OneInt()})
+	keeper.bankKeeper.(*recordingBankKeeper).rewardPoolBalance = sdk.NewCoin(types.BondDenom, math.ZeroInt())
+
+	message, broken := rewardSolvencyInvariant(keeper)(ctx)
+
+	require.True(t, broken)
+	require.Contains(t, message, "offending_position=1")
 }
 
 type invariantRegistry struct {

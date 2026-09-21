@@ -20,6 +20,12 @@ principal custody or revenue accounting. The existing `x/dyncomm` module is
 the local example of reading validator state and using an end blocker; Phase 3
 does not copy its commission-changing behavior.
 
+Phase 3 is optional for a launch that offers only native USTC staking and
+community-pool-funded staker rewards. It is required only if governance elects
+to include the validator incentive overlay in launch scope. Completing the
+feature phases does not replace audit, upgrade rehearsal, dependency review,
+validator acceptance, monitoring, or governance release approval.
+
 ## Program model
 
 ### Enrollment
@@ -38,8 +44,10 @@ does not copy its commission-changing behavior.
 
 ### Performance pool
 
-- The pool is disabled by default and funded only by a distinct,
-  governance-authorized USTC transfer. It is not paid from user principal,
+- The pool is disabled by default and funded from the distribution community
+  pool through a distinct governance-authorized `MsgFundPerformancePool`. The
+  transfer uses the same constrained application adapter as Phase 2 but names
+  only `ustcstaking_validator_performance_pool` as its destination. It is not paid from user principal,
   Phase 1 staker rewards, minted supply, or the validator distribution module.
 - A configured `performance_authority` submits a finalized epoch with one
   non-negative score per eligible validator and a funding amount already held
@@ -94,12 +102,14 @@ per-block validator iteration merely for a periodic incentive program.
   principal withdrawal, Phase 1 reward claims, or already-created performance
   claims.
 - The launch package requires the Phase 1 and 2 audits, Phase 3 audit,
-  upgrade rehearsal, contract code checksum, governance timelock evidence,
+  upgrade rehearsal, binary and source revision checksums, governance timelock evidence,
   source/authority configuration, monitoring dashboards, and rollback/pause
   drills.
-- The native upgrade identifier is `ustc_staking`. It is a stable technical
-  identifier used by the app's upgrade handler; the governance proposal title
-  may use different human-readable wording.
+- `ustc_staking` is already used by the initial Phase 1/2 store upgrade. If
+  Phase 3 is included before first activation, extend that single candidate
+  upgrade. If Phase 3 follows an activated release, use a distinct app upgrade
+  name and a versioned module migration; never reuse the existing identifier
+  or reset live USTC staking state.
 
 ## Final-phase checklist
 
@@ -117,5 +127,5 @@ per-block validator iteration merely for a periodic incentive program.
   commission changes, or distribution-module modifications.
 - Automatic on-chain uptime scoring beyond data that can be proven complete and
   policy-approved in a future separately specified upgrade.
-- Additional DEX, POL, or revenue economics beyond Phase 2's constrained
-  funding interface.
+- Additional DEX, POL, or revenue economics beyond governance-authorized
+  community-pool funding.

@@ -5,8 +5,8 @@
 Phase 1 functional behavior is ready for continued controlled testing, not
 yet for a public-testnet or production upgrade. The local seven-validator
 campaign passed the user lifecycle and restart paths. Code-level hardening
-now adds owner indexing, imported-state checks, registered invariants, events,
-the USTC simulation decoder, and real-app keeper coverage.
+adds owner indexing, imported-state checks, on-demand accounting validation,
+stable events, the USTC simulation decoder, and real-app keeper coverage.
 
 The remaining release blockers are an executed live-chain upgrade rehearsal,
 the final repeated seven-validator campaign on the release revision, and
@@ -42,7 +42,9 @@ validator testing does not certify the new funding adapter or its upgrade.
      registered as a global runtime invariant.
 
 4. **Seven-validator campaign**
-   - rerun `phase-1-localnet-testing.md` from a clean generated network;
+   - rerun `phase-2-community-pool-localnet-testing.md` from a clean generated
+     network to retest the native user lifecycle alongside the Phase 2 funding
+     path;
    - verify events, owner-scoped queries, pause/resume governance, claims,
      unbonding, withdrawal, unauthorized actions, node restart, and full
      network restart;
@@ -50,7 +52,7 @@ validator testing does not certify the new funding adapter or its upgrade.
 
 5. **Security and operations**
    - record dependency scanner output and dispositions in
-     `phase-1-dependency-triage.md`;
+     `archive/phase-1-dependency-triage.md`;
    - review query resource bounds and event compatibility;
    - obtain independent validator review and governance approval;
    - document rollback authority and the no-retry rule for a failed upgrade.

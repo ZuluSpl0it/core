@@ -58,6 +58,10 @@ func activeSharesInvariant(keeper Keeper) sdk.Invariant {
 	return func(ctx sdk.Context) (string, bool) {
 		expected := math.ZeroInt()
 		var offending uint64
+		state := keeper.GetRewardState(ctx)
+		if state.RewardIndex.IsNil() || state.RewardIndex.IsNegative() || state.TotalShares.IsNil() || state.TotalShares.IsNegative() {
+			return fmt.Sprintf("active shares: uninitialized or negative reward state index=%s total_shares=%s", state.RewardIndex, state.TotalShares), true
+		}
 		keeper.IteratePositions(ctx, func(position types.Position) bool {
 			shares := position.Shares
 			if shares.IsNil() {
@@ -71,10 +75,7 @@ func activeSharesInvariant(keeper Keeper) sdk.Invariant {
 			}
 			return false
 		})
-		actual := keeper.GetRewardState(ctx).TotalShares
-		if actual.IsNil() {
-			actual = math.ZeroInt()
-		}
+		actual := state.TotalShares
 		if offending != 0 || actual.IsNegative() || !actual.Equal(expected) {
 			return fmt.Sprintf("active shares: expected=%s actual=%s offending_position=%d", expected, actual, offending), true
 		}
@@ -88,8 +89,24 @@ func rewardSolvencyInvariant(keeper Keeper) sdk.Invariant {
 		liability := math.ZeroInt()
 		var offending uint64
 		keeper.IteratePositions(ctx, func(position types.Position) bool {
+			if position.ClaimableRewards.Denom != types.BondDenom || position.ClaimableRewards.Amount.IsNil() ||
+				position.ClaimableRewards.Amount.IsNegative() {
+				offending = position.Id
+				return true
+			}
 			amount := keeper.AccruedRewards(position, state)
-			if amount.IsNegative() {
+			if position.Status == types.PositionStatus_POSITION_STATUS_ACTIVE {
+				if position.Shares.IsNil() || position.RewardDebt.IsNil() || state.RewardIndex.IsNil() {
+					offending = position.Id
+					return true
+				}
+				if position.Shares.ToLegacyDec().Mul(state.RewardIndex).Sub(position.RewardDebt).IsNegative() {
+					offending = position.Id
+					return true
+				}
+				amount = amount.Add(position.ClaimableRewards.Amount)
+			}
+			if amount.IsNil() || amount.IsNegative() {
 				offending = position.Id
 				return true
 			}

@@ -66,6 +66,7 @@ func TestWithdrawnPositionExportsWithoutPanic(t *testing.T) {
 		Id:               1,
 		Owner:            owner,
 		Principal:        sdk.NewCoin(types.BondDenom, math.NewInt(100)),
+		LockTierId:       1,
 		Shares:           math.ZeroInt(),
 		ShareMultiplier:  math.LegacyOneDec(),
 		RewardDebt:       math.LegacyZeroDec(),

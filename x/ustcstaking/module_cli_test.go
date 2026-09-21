@@ -23,7 +23,7 @@ func TestAppModuleBasicExposesCLICommands(t *testing.T) {
 		commandUses(txCmd),
 	)
 	require.ElementsMatch(t,
-		[]string{"position", "positions", "reward-state", "params"},
+		[]string{"position", "positions", "reward-state", "params", "validate-state"},
 		commandUses(queryCmd),
 	)
 }

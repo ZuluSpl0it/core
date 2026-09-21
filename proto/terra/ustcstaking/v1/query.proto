@@ -2,6 +2,7 @@ syntax = "proto3";
 package terra.ustcstaking.v1;
 
 import "cosmos/base/query/v1beta1/pagination.proto";
+import "cosmos/base/v1beta1/coin.proto";
 import "cosmos_proto/cosmos.proto";
 import "google/api/annotations.proto";
 import "gogoproto/gogo.proto";
@@ -22,6 +23,9 @@ service Query {
   rpc Params(QueryParamsRequest) returns (QueryParamsResponse) {
     option (google.api.http).get = "/terra/ustcstaking/v1/params";
   }
+  rpc ValidateState(QueryValidateStateRequest) returns (QueryValidateStateResponse) {
+    option (google.api.http).get = "/terra/ustcstaking/v1/validate-state";
+  }
 }
 
 message QueryPositionRequest { uint64 position_id = 1 [(gogoproto.moretags) = "yaml:\"position_id\""]; }
@@ -38,3 +42,22 @@ message QueryRewardStateRequest {}
 message QueryRewardStateResponse { RewardState reward_state = 1 [(gogoproto.nullable) = false]; }
 message QueryParamsRequest {}
 message QueryParamsResponse { Params params = 1 [(gogoproto.nullable) = false]; }
+// ValidateState pages across position records. Each RPC is capped; callers
+// needing a complete state result must follow pagination at one pinned height
+// and aggregate every page, as the CLI does.
+message QueryValidateStateRequest {
+  cosmos.base.query.v1beta1.PageRequest pagination = 1;
+}
+message QueryValidateStateResponse {
+  // Valid covers structural/accounting validity of this page only. The CLI
+  // performs global balance and active-share comparisons after aggregating all pages.
+  bool valid = 1;
+  string detail = 2;
+  cosmos.base.query.v1beta1.PageResponse pagination = 3;
+  string principal_liability = 4;
+  string active_shares = 5;
+  string reward_liability = 6;
+  repeated cosmos.base.v1beta1.Coin principal_pool_balances = 7 [(gogoproto.nullable) = false];
+  repeated cosmos.base.v1beta1.Coin reward_pool_balances = 8 [(gogoproto.nullable) = false];
+  RewardState reward_state = 9 [(gogoproto.nullable) = false];
+}

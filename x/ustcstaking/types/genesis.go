@@ -30,9 +30,9 @@ func ValidateGenesis(genesis *GenesisState) error {
 	if err := genesis.Params.Validate(); err != nil {
 		return ErrInvalidGenesis.Wrapf("params: %s", err)
 	}
-	if (!genesis.RewardState.RewardIndex.IsNil() && genesis.RewardState.RewardIndex.IsNegative()) ||
-		(!genesis.RewardState.TotalShares.IsNil() && genesis.RewardState.TotalShares.IsNegative()) {
-		return ErrInvalidRewardState.Wrap("reward index and total shares must be non-negative")
+	if genesis.RewardState.RewardIndex.IsNil() || genesis.RewardState.RewardIndex.IsNegative() ||
+		genesis.RewardState.TotalShares.IsNil() || genesis.RewardState.TotalShares.IsNegative() {
+		return ErrInvalidRewardState.Wrap("reward index and total shares must be initialized and non-negative")
 	}
 
 	activeShares := math.ZeroInt()
@@ -58,13 +58,12 @@ func ValidateGenesis(genesis *GenesisState) error {
 		if err := validateClaimable(position.ClaimableRewards); err != nil {
 			return ErrInvalidPosition.Wrapf("position %d claimable rewards: %s", position.Id, err)
 		}
-		if position.LockDuration == nil || *position.LockDuration <= 0 ||
+		if position.LockTierId == 0 || position.LockDuration == nil || *position.LockDuration <= 0 ||
 			position.ShareMultiplier.IsNil() || !position.ShareMultiplier.IsPositive() {
 			return ErrInvalidLockSnapshot.Wrapf("position %d has invalid lock snapshot", position.Id)
 		}
-		if (!position.Shares.IsNil() && position.Shares.IsNegative()) ||
-			(!position.RewardDebt.IsNil() && position.RewardDebt.IsNegative()) {
-			return ErrInvalidPosition.Wrapf("position %d has negative accounting state", position.Id)
+		if position.Shares.IsNil() || position.RewardDebt.IsNil() || position.Shares.IsNegative() || position.RewardDebt.IsNegative() {
+			return ErrInvalidPosition.Wrapf("position %d has nil or negative accounting state", position.Id)
 		}
 		switch position.Status {
 		case PositionStatus_POSITION_STATUS_ACTIVE:
@@ -74,26 +73,24 @@ func ValidateGenesis(genesis *GenesisState) error {
 			if position.Shares.IsNil() || !position.Shares.IsPositive() {
 				return ErrInvalidPosition.Wrapf("active position %d must have shares", position.Id)
 			}
+			if position.Shares.ToLegacyDec().Mul(genesis.RewardState.RewardIndex).Sub(position.RewardDebt).IsNegative() {
+				return ErrInvalidPosition.Wrapf("active position %d reward debt exceeds accrued rewards", position.Id)
+			}
 			activeShares = activeShares.Add(position.Shares)
 		case PositionStatus_POSITION_STATUS_UNBONDING:
-			if (!position.Shares.IsNil() && position.Shares.IsPositive()) || position.UnbondingEndTime == nil ||
-				(!position.RewardDebt.IsNil() && !position.RewardDebt.IsZero()) {
+			if !position.Shares.IsZero() || position.UnbondingEndTime == nil || position.UnbondingEndTime.IsZero() ||
+				!position.RewardDebt.IsZero() {
 				return ErrInvalidPosition.Wrapf("unbonding position %d has invalid shares or maturity", position.Id)
 			}
 		case PositionStatus_POSITION_STATUS_WITHDRAWN:
-			if (!position.Shares.IsNil() && position.Shares.IsPositive()) ||
-				(!position.Principal.Amount.IsNil() && !position.Principal.Amount.IsZero()) {
+			if !position.Shares.IsZero() || !position.Principal.Amount.IsZero() || !position.RewardDebt.IsZero() {
 				return ErrInvalidPosition.Wrapf("withdrawn position %d retains principal or shares", position.Id)
 			}
 		default:
 			return ErrInvalidPosition.Wrapf("position %d has unknown status", position.Id)
 		}
 	}
-	totalShares := genesis.RewardState.TotalShares
-	if totalShares.IsNil() {
-		totalShares = math.ZeroInt()
-	}
-	if !activeShares.Equal(totalShares) {
+	if !activeShares.Equal(genesis.RewardState.TotalShares) {
 		return ErrInvalidRewardState.Wrapf("total shares %s does not equal active shares %s", genesis.RewardState.TotalShares, activeShares)
 	}
 	if genesis.NextPositionId <= maxID {

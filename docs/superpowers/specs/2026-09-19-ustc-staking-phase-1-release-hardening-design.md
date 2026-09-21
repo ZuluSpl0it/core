@@ -109,9 +109,11 @@ applies the real store loader and upgrade handler, then checks:
 
 ## Accounting invariants
 
-Create keeper invariants and register them from `AppModule.RegisterInvariants`.
-Each invariant returns deterministic diagnostics containing expected and
-actual values without mutating state.
+Create pure keeper invariant routes and expose them through
+`AppModule.RegisterInvariants` for SDK-compatible tooling. Because the app's
+Cosmos SDK v0.53 manager makes that registry a no-op and crisis is absent, the
+production operator path is the on-demand `Query/ValidateState` documented
+below. Each check returns deterministic diagnostics without mutating state.
 
 ### Principal custody
 
@@ -269,9 +271,15 @@ asserts:
   maturity, or owner checks fail;
 - no changes to validator staking state.
 
-Invariant routes are invoked directly after every transition. Tests also use
-the crisis invariant registry to prove the routes are registered under the
-`ustcstaking` module name.
+Cosmos SDK v0.53 marks `sdk.InvariantRegistry` deprecated, makes
+`module.Manager.RegisterInvariants` a no-op, and this application no longer
+includes `x/crisis`. Do not restore crisis or add a per-block scan. Keep the
+three pure invariant routes on the module for compatible tooling, and expose
+an explicit read-only `Query/ValidateState` plus `terrad query ustcstaking
+validate-state` that runs the same checks on demand. Genesis import, upgrade
+initialization, real-app integration tests, and validator campaigns exercise
+that checker. A future SDK runtime invariant facility can register the same
+checks without changing their accounting rules.
 
 ## Documentation and verification
 
@@ -306,8 +314,9 @@ Phase 1 hardening is complete only when:
    changing existing balances, supply, or validator state;
 2. default USTC staking state and both permissionless module accounts exist
    after upgrade;
-3. principal, shares, and reward-solvency invariants are registered and pass
-   against real keeper state;
+3. principal, shares, and reward-solvency invariant routes are available to
+   compatible tooling, and bounded `Query/ValidateState` pages plus the CLI's
+   complete pinned-height aggregation pass against real keeper state;
 4. owner queries use the secondary index and remain deterministic;
 5. malformed genesis/import states and exhausted IDs fail before mutation;
 6. every successful message emits its specified event and failed messages do

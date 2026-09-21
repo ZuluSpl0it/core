@@ -30,7 +30,9 @@ pending
       paused negative cases.
 - [ ] Direct stake, claim, pause/resume, unbond, and withdrawal.
 - [ ] Node restart and full-network restart.
-- [ ] Registered invariants and real-BankKeeper integration checks.
+- [ ] `terrad query ustcstaking validate-state` returns `.valid == true` before
+      and after each campaign; real-BankKeeper integration checks cover every
+      lifecycle path.
 - [ ] Total USTC supply unchanged throughout the campaign.
 
 Network, revision, evidence location, and date:

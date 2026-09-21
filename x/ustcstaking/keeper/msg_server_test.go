@@ -161,6 +161,29 @@ func TestClaimFailsWhenRewardPoolCannotCoverLiability(t *testing.T) {
 	require.Zero(t, keeper.bankKeeper.(*recordingBankKeeper).moduleToAccountCalls)
 }
 
+func TestClaimPaysStoredAndNewlyAccruedRewardsForActivePosition(t *testing.T) {
+	ctx, keeper := newKeeperTest(t)
+	owner := testAddress()
+	configureKeeper(t, ctx, keeper, owner)
+	keeper.SetRewardState(ctx, types.RewardState{RewardIndex: math.LegacyOneDec(), TotalShares: math.NewInt(10)})
+	keeper.SetPosition(ctx, types.Position{
+		Id: 1, Owner: owner, Shares: math.NewInt(10), RewardDebt: math.NewInt(5).ToLegacyDec(),
+		ClaimableRewards: sdk.NewCoin(types.BondDenom, math.NewInt(7)),
+		Status:           types.PositionStatus_POSITION_STATUS_ACTIVE,
+	})
+	keeper.bankKeeper.(*recordingBankKeeper).rewardPoolBalance = sdk.NewCoin(types.BondDenom, math.NewInt(12))
+
+	response, err := NewMsgServerImpl(keeper).ClaimRewards(sdk.WrapSDKContext(ctx), &types.MsgClaimRewards{Owner: owner, PositionId: 1})
+
+	require.NoError(t, err)
+	require.Equal(t, math.NewInt(12), response.Amount.Amount)
+	position, found := keeper.GetPosition(ctx, 1)
+	require.True(t, found)
+	require.True(t, position.ClaimableRewards.Amount.IsZero())
+	require.True(t, position.RewardDebt.Equal(math.LegacyNewDec(10)))
+	require.Equal(t, 1, keeper.bankKeeper.(*recordingBankKeeper).moduleToAccountCalls)
+}
+
 func TestFundRewardsRequiresGovernanceAuthority(t *testing.T) {
 	ctx, keeper := newKeeperTest(t)
 	authority := testAddress()

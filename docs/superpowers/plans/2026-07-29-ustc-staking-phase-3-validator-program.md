@@ -6,7 +6,7 @@
 
 **Architecture:** Extend `x/ustcstaking` with validator enrollment and explicit performance epochs. It reads validator existence/status through a narrow `StakingKeeper`, validates a Phase 1 USTC position at enrollment/finalization, and pays only allocations already covered by `ustcstaking_validator_performance_pool`. No end blocker, staking hook, or distribution/slashing integration is added.
 
-**Tech Stack:** Go, Cosmos SDK v0.50, protobuf + Buf, SDK math, gRPC-gateway, Go invariants, existing app upgrade and Wasm integration test harnesses.
+**Tech Stack:** Go, Cosmos SDK v0.53.6 (match the repository's pinned version), protobuf + Buf, SDK math, gRPC-gateway, keeper accounting checks, and the existing native app upgrade harness. Do not add a Wasm integration dependency.
 
 ---
 
@@ -16,7 +16,7 @@
 - [ ] Keep every performance payout USTC-only and pre-funded.
 - [ ] Treat `performance_authority` as a constrained reporting authority, never governance authority.
 - [ ] Verify every epoch score, allocation, and claim against module-account balances.
-- [ ] Complete Phases 1–3 audit and launch gates before activation.
+- [ ] Complete the applicable feature-phase audits and all upgrade, security, operational, validator-acceptance, and governance launch gates before activation.
 
 ### Task 1: Define validator-program protobuf and state types
 
@@ -123,8 +123,11 @@ func TestEpochDustRemainsInPerformancePool(t *testing.T) {}
 add it to `maccPerms` with nil permissions. It differs from distribution:
 funding is explicit USTC, never minted inflation or validator commission.
 
-- [ ] **Step 3: Implement funding and allocation.** Governance funds the pool
-from its account. `performance_authority` finalizes a unique, closed epoch;
+- [ ] **Step 3: Implement funding and allocation.** Add a dedicated,
+governance-authorized `MsgFundPerformancePool` that debits the distribution
+community pool through the narrow Phase 2 adapter and can credit only the
+performance-pool module account. Do not reuse `MsgFundRewards` or credit the
+Phase 1 staker reward pool. `performance_authority` finalizes a unique, closed epoch;
 the keeper filters ineligible entries, computes proportional integer shares,
 retains dust, and writes one allocation per eligible validator. It cannot
 transfer funds during finalization.
@@ -203,7 +206,7 @@ func TestTimelockedProgramParameterChangeCannotExecuteEarly(t *testing.T) {}
 - [ ] **Step 2: Implement timelocked program changes.** Store pending program
 params with an activation timestamp at least 30 days in the future. Governance
 may schedule/execute changes; immediate pause and allow-list removal are safety
-operations. Phase 1 params and Phase 2 TreasuryManager authorities are not
+operations. Phase 1 params and Phase 2 community-pool funding authority are not
 changed by Phase 3 messages.
 
 - [ ] **Step 3: Add genesis and migration coverage.** Export/import
@@ -220,20 +223,19 @@ git add x/ustcstaking docs/ustc-staking/phase-3-release-readiness.md
 git commit -m "feat: govern USTC validator program"
 ```
 
-### Task 6: Rehearse the chain upgrade and full three-phase launch
+### Task 6: Rehearse the chain upgrade and launch candidate
 
 **Files:**
-- Create: `app/upgrades/ustc_staking/{constants,upgrades,ustcstaking}_test.go`
-- Modify: `app/app.go`
+- Modify: existing USTC staking upgrade registration and handler only when the chosen release scenario requires it.
 - Modify: `docs/ustc-staking/phase-3-release-readiness.md`
 - Modify: `AGENTS.md`
 
-- [ ] **Step 1: Create the `ustc_staking` upgrade package.** Use the existing
-`app/upgrades/v14_2` constants/handler layout and register its handler in
-`app/app.go`. Initialize the Phase 1 store and Phase 3 program defaults; do
-not activate TreasuryManager or a performance pool until governance has
-completed the Phase 2/3 timelocks. `ustc_staking` is the fixed app upgrade
-identifier; it is independent of a governance proposal's display title.
+- [ ] **Step 1: Select a non-repeating upgrade path.** If this is the initial
+activation and Phase 3 is included before release, extend the existing
+`ustc_staking` handler and store addition. If Phase 1/2 have already activated,
+use a new app upgrade name, increment the module consensus version, and add a
+state migration that preserves all Phase 1/2 records and balances. Never create
+a second `ustc_staking` handler or overwrite live state.
 
 - [ ] **Step 2: Write upgrade rehearsal tests.** Import pre-upgrade app state,
 run the approved handler, export state, then assert USTC store/module accounts,
@@ -241,13 +243,14 @@ empty enrollments, disabled performance pool, and unchanged LUNC validator
 power/commission/slashing state.
 
 - [ ] **Step 3: Complete launch readiness.** Require published allow-list,
-self-bond/lock tiers, performance methodology, authority addresses, contract
-checksum, audit reports, Graphify validation, monitoring, incident response,
-and a pause/rollback drill. Activation is blocked until each item is checked.
+self-bond/lock tiers, performance methodology, authority addresses, source and
+binary checksums, audit reports, Graphify validation, monitoring, incident
+response, and a pause/rollback drill. Activation is blocked until each item is
+checked. Phase 3 remains optional for a Phase 1/2 native staking launch.
 
 - [ ] **Step 4: Run final verification and commit.**
 
-Run: `make proto-gen && go test ./x/ustcstaking/... -count=1 && go test ./app/upgrades/... ./wasmbinding/test -count=1 && go test ./...`
+Run: `make proto-gen && go test ./x/ustcstaking/... -count=1 && go test ./app/upgrades/... -count=1 && go test ./...`
 
 ```bash
 git add app/upgrades docs/ustc-staking AGENTS.md proto/terra/ustcstaking x/ustcstaking

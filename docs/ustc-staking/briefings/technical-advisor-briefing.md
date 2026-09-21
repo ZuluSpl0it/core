@@ -18,7 +18,7 @@ The approved implementation sequence is deliberately staged:
 |---|---|---|
 | 1. Native USTC ledger | locks, withdrawals, claims, funded rewards | principal custody and accounting must be correct before any revenue integration |
 | 2. Native community-pool funding | governance moves existing community-pool USTC into the reward pool | no contract or revenue automation; user principal remains native |
-| 3. Validator program and launch | optional validator eligibility/performance incentives plus activation controls | validator policy is operationally sensitive but must not affect consensus |
+| 3. Optional validator program | separate validator eligibility/performance incentives | optional for native staking; it must not affect consensus |
 
 Phase 2 funding is a governance action. Users stake USTC directly through the
 native module; no contract receives principal or acts as a reward funder.
@@ -57,7 +57,8 @@ approval.
 Phase 3 can allow a capped, governance-approved validator group to demonstrate
 a minimum USTC position and qualify for a separate performance pool. The paper
 suggests an initial 21-validator cap and a 1,000,000 USTC minimum; these are
-policy defaults subject to governance approval.
+policy defaults subject to governance approval. A Phase 1/2 launch does not
+depend on this optional program.
 
 The program only controls eligibility for optional USTC incentives. It does
 not create validators, alter their LUNC stake, change voting power, change
@@ -102,25 +103,26 @@ economic model and a separate future funding design.
 3. Independent Go accounting/security review.
 4. Economic simulation, monitoring/reconciliation tooling, governance process,
    incident drills, and operational ownership.
-5. Treasury/POL capital, DEX routing costs, liquidity-management costs, and
-   any legal, tax, or compliance review required by the organization.
+5. Any separately approved future Treasury/POL capital, DEX routing costs,
+   liquidity-management costs, and legal, tax, or compliance review.
 
 Actual cost estimates are outside this technical plan and require vendor
 quotes, staffing assumptions, legal jurisdiction, and revenue-source design.
 
 ### How could this be financially sustainable?
 
-It is sustainable only if realized, net USTC inflows exceed the combination of
-reward commitments, reserve requirements, contract/DEX operating costs, audit
-and maintenance costs, and any buyback/burn allocation. The design protects
-the chain from paying more than it has funded; it does not prove that inflows
-will be sufficient.
+The Phase 2 design does not establish an automated revenue stream. Governance
+must weigh any proposed community-pool allocation against other uses and can
+fund only what the pool actually holds. The design prevents staking payouts
+from exceeding funded balances; it does not prove that future funding will be
+sufficient.
 
 ### What is the organization accepting if it approves this?
 
-- Delivery and audit spend before adoption/revenue is proven.
-- Smart-contract, DEX/liquidity, governance, economic-model, and reputational
-  risk in Phase 2.
+- Delivery and audit spend before adoption is proven.
+- Governance, economic-model, and reputational risk from funding decisions.
+- Additional smart-contract and DEX/liquidity risk only if separately approved
+  future revenue infrastructure is pursued.
 - A transparent but authority-based performance-score process in Phase 3.
 - Ongoing responsibility to monitor balances, receipts, allocation events,
   authority changes, and policy timelocks.
@@ -141,13 +143,11 @@ Before activation, the plan requires:
 
 - unit, integration, invariant, fuzz/property, genesis/export, and upgrade
   tests for the native module;
-- contract unit, multi-test, migration, and real chain-handler Stargate tests;
-- receipt-to-pool reconciliation and monitoring;
-- separate Go and Rust/CosmWasm audits;
-- governance timelock, authority-rotation, emergency-pause, and rollback
-  drills;
-- published parameters, scoring methodology, source allow-list, and contract
-  checksum.
+- real-keeper community-pool accounting and reconciliation tests;
+- independent native-module accounting/security review;
+- governance execution, emergency-pause, and upgrade/recovery drills;
+- published parameters, and—if Phase 3 is approved—its scoring methodology,
+  allow-list, and reporting authority.
 
 The local Graphify code graph is available for implementation navigation, but
 source files and these approved documents remain authoritative.
@@ -155,10 +155,9 @@ source files and these approved documents remain authoritative.
 ## Decisions C-suite must make before activation
 
 1. Whether to fund a Phase 1 pilot and the maximum pilot allocation.
-2. Which USTC revenue sources are permitted, and which costs are netted before
-   allocation.
-3. Reserve/reward/buyback allocation policy, bounds, timelock, and emergency
-   authority.
+2. The community-pool funding amount and cadence for a Phase 1/2 pilot.
+3. Whether to approve separate Treasury/POL, DEX, reserve, or buyback work in a
+   future design.
 4. Audit budget, accountable owners, monitoring expectations, and pause
    authority.
 5. Whether the Phase 3 validator program is enabled at launch, including its

@@ -692,7 +692,7 @@ git commit -m "docs: align USTC protocol with governance funding"
 
 **Files:**
 - Create: `docs/ustc-staking/phase-2-community-pool-funding.md`
-- Modify: `docs/ustc-staking/phase-1-localnet-testing.md`
+- Modify: `docs/ustc-staking/phase-2-community-pool-localnet-testing.md`
 - Modify: `docs/ustc-staking/phase-1-release-readiness.md`
 - Modify: `docs/ustc-staking/briefings/{technical-advisor-briefing,c-suite-briefing}.md`
 
