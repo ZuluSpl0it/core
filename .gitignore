@@ -64,3 +64,9 @@ CLAUDE.md
 # Local Graphify artifacts
 /graphify-out/
 __pycache__/
+
+# Local USTC staking and Superpowers working documents
+/docs/superpowers/
+/docs/ustc-staking/archive/
+/docs/ustc-staking/briefings/
+protodoc-markdown.tmpl
