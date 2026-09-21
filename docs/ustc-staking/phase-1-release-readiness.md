@@ -51,8 +51,6 @@ validator testing does not certify the new funding adapter or its upgrade.
    - attach command logs, revision, genesis hash, and final supply comparison.
 
 5. **Security and operations**
-   - record dependency scanner output and dispositions in
-     `archive/phase-1-dependency-triage.md`;
    - review query resource bounds and event compatibility;
    - obtain independent validator review and governance approval;
    - document rollback authority and the no-retry rule for a failed upgrade.
